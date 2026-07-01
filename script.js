@@ -95,10 +95,12 @@ const DUCTS = {
       { id: 'B', label: 'Main Height B' },
       { id: 'E', label: 'Branch Width E' },
       { id: 'F', label: 'Branch Height F' },
+      { id: 'C', label: 'Side Width C' },
+      { id: 'D', label: 'Side Height D' },
       { id: 'R', label: 'Fillet Radius R' },
       { id: 'L', label: 'Total Length L' },
     ],
-    calc: f => `Branch takeoff: ${f.A}×${f.B} + branch ${f.E}×${f.F} R${f.R} × L${f.L}`,
+    calc: f => `Branch takeoff: ${f.A}×${f.B} + branch ${f.E}×${f.F} + side ${f.C}×${f.D} R${f.R} × L${f.L}`,
     area: f => {
       const a = +f.A, b = +f.B, e = +f.E, ff = +f.F, l = +f.L, r = +f.R;
       const mainPerim = 2 * (a + b) / 1000;
@@ -949,6 +951,8 @@ function updateStaticModalPreview(key, f) {
     { id: 'B', title: 'B', cls: 'y-duct-label-b' },
     { id: 'E', title: 'E', cls: 'y-duct-label-e' },
     { id: 'F', title: 'F', cls: 'y-duct-label-f' },
+    { id: 'C', title: 'C', cls: 'y-duct-label-c' },
+    { id: 'D', title: 'D', cls: 'y-duct-label-d' },
     { id: 'R', title: 'R', cls: 'y-duct-label-r' },
     { id: 'L', title: 'L', cls: 'y-duct-label-l' },
   ];
@@ -987,6 +991,8 @@ function updateStaticPreview(key, f) {
     { id: 'B', title: 'B', cls: 'y-duct-label-b' },
     { id: 'E', title: 'E', cls: 'y-duct-label-e' },
     { id: 'F', title: 'F', cls: 'y-duct-label-f' },
+    { id: 'C', title: 'C', cls: 'y-duct-label-c' },
+    { id: 'D', title: 'D', cls: 'y-duct-label-d' },
     { id: 'R', title: 'R', cls: 'y-duct-label-r' },
     { id: 'L', title: 'L', cls: 'y-duct-label-l' },
   ];
