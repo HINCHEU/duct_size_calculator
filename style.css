@@ -333,6 +333,28 @@ select.field-input {
 .y-duct-label-d { top: 82%; left: 60%; }
 .y-duct-label-r { top: 52%; left: 42%; }
 .y-duct-label-l { top: 10%; left: 42%; }
+.r-type-label,
+.butterfly-label {
+  transform: translate(-50%, -50%);
+  text-align: center;
+  min-width: 32px;
+}
+.r-type-label-a { top: 74%; left: 6%; }
+.r-type-label-b { top: 50%; left: 6%; }
+.r-type-label-e { top: 60%; right: 8%; }
+.r-type-label-f { top: 38%; right: 14%; }
+.r-type-label-c { top: 12%; right: 14%; }
+.r-type-label-d { top: 82%; right: 12%; }
+.r-type-label-r { top: 52%; left: 50%; }
+.r-type-label-l { top: 14%; left: 48%; }
+.butterfly-label-a { top: 88%; left: 50%; }
+.butterfly-label-b { top: 76%; left: 24%; }
+.butterfly-label-c { top: 20%; left: 14%; }
+.butterfly-label-d { top: 42%; left: 10%; }
+.butterfly-label-r1 { top: 16%; left: 34%; }
+.butterfly-label-e { top: 24%; right: 12%; }
+.butterfly-label-f { top: 48%; right: 10%; }
+.butterfly-label-r2 { top: 16%; left: 66%; }
 .y-duct-static {
   width: 100%;
   height: 100%;
@@ -429,7 +451,9 @@ select.field-input {
   display: none;
 }
 .duct-3d-modal.is-open.is-y-duct #duct-static-img-modal,
-.duct-3d-modal.is-open.is-y-duct #duct-static-overlay-modal {
+.duct-3d-modal.is-open.is-y-duct #duct-static-overlay-modal,
+.duct-3d-modal.is-open.is-static-duct #duct-static-img-modal,
+.duct-3d-modal.is-open.is-static-duct #duct-static-overlay-modal {
   display: block;
 }
 .duct-3d-modal-card {

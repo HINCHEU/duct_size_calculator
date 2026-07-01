@@ -126,7 +126,7 @@ const DUCTS = {
     tag: 'R-Type',
     fields: [{ id: 'A', label: 'Main Width A' }, { id: 'B', label: 'Main Height B' }, { id: 'C', label: 'Branch 1 C' }, { id: 'D2', label: 'Branch 1 Height D' }, { id: 'E', label: 'Branch 2 E' }, { id: 'F', label: 'Branch 2 Height F' }, { id: 'R', label: 'Radius R' }, { id: 'L', label: 'Length L' }],
     calc: f => `R-type: ${f.A}×${f.B}→${f.E}×${f.F}↔${f.C}×${f.D2}R${f.R}L${f.L}`,
-    // Excel: main straight perim*(L/2/1000) + branch elbow perim*(PI/2*R/1000) + outlet perim*(L/2/1000)
+    // Excel: main inlet = 2*(A+B)/1000 * (L/2/1000), branch elbow = 2*(C+D)/1000 * (PI/2*R/1000), outlet = 2*(E+F)/1000 * (L/2/1000)
     area: f => {
       const a = +f.A, b = +f.B, c = +f.C, d = +f.D2, e = +f.E, ff = +f.F, l = +f.L, r = +f.R;
       return 2 * (a + b) / 1000 * (l / 1000 * 0.5) + 2 * (c + d) / 1000 * (Math.PI / 2 * r / 1000) + 2 * (e + ff) / 1000 * (l / 1000 * 0.5);

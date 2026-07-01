@@ -9,9 +9,18 @@ function getDisplayVals(key, t, vals) {
   return ph;
 }
 
-function renderYLabelOverlay(overlay, f) {
+function renderStaticLabelOverlay(overlay, f, labels) {
   if (!overlay) return;
-  const labels = [
+  overlay.innerHTML = labels
+    .map(label => {
+      const value = +f[label.id] > 0 ? `${f[label.id]} mm` : '';
+      return `<span class="y-duct-label ${label.cls}">${label.title}${value ? ' ' + value : ''}</span>`;
+    })
+    .join('');
+}
+
+function renderYLabelOverlay(overlay, f) {
+  renderStaticLabelOverlay(overlay, f, [
     { id: 'A', title: 'A', cls: 'y-duct-label-a' },
     { id: 'B', title: 'B', cls: 'y-duct-label-b' },
     { id: 'E', title: 'E', cls: 'y-duct-label-e' },
@@ -20,13 +29,39 @@ function renderYLabelOverlay(overlay, f) {
     { id: 'D', title: 'D', cls: 'y-duct-label-d' },
     { id: 'R', title: 'R', cls: 'y-duct-label-r' },
     { id: 'L', title: 'L', cls: 'y-duct-label-l' },
-  ];
-  overlay.innerHTML = labels
-    .map(label => {
-      const value = +f[label.id] > 0 ? `${f[label.id]} mm` : '';
-      return `<span class="y-duct-label ${label.cls}">${label.title}${value ? ' ' + value : ''}</span>`;
-    })
-    .join('');
+  ]);
+}
+
+function renderRTypeLabelOverlay(overlay, f) {
+  renderStaticLabelOverlay(overlay, f, [
+    { id: 'A', title: 'A', cls: 'r-type-label-a' },
+    { id: 'B', title: 'B', cls: 'r-type-label-b' },
+    { id: 'E', title: 'E', cls: 'r-type-label-e' },
+    { id: 'F', title: 'F', cls: 'r-type-label-f' },
+    { id: 'C', title: 'C', cls: 'r-type-label-c' },
+    { id: 'D2', title: 'D', cls: 'r-type-label-d' },
+    { id: 'R', title: 'R', cls: 'r-type-label-r' },
+    { id: 'L', title: 'L', cls: 'r-type-label-l' },
+  ]);
+}
+
+function renderButterflyLabelOverlay(overlay, f) {
+  renderStaticLabelOverlay(overlay, f, [
+    { id: 'A', title: 'A', cls: 'butterfly-label-a' },
+    { id: 'B', title: 'B', cls: 'butterfly-label-b' },
+    { id: 'C', title: 'C', cls: 'butterfly-label-c' },
+    { id: 'D2', title: 'D', cls: 'butterfly-label-d' },
+    { id: 'R1', title: 'R1', cls: 'butterfly-label-r1' },
+    { id: 'E', title: 'E', cls: 'butterfly-label-e' },
+    { id: 'F', title: 'F', cls: 'butterfly-label-f' },
+    { id: 'R2', title: 'R2', cls: 'butterfly-label-r2' },
+  ]);
+}
+
+function getStaticImageSrc(key) {
+  if (key === 'r_type') return 'duct/R-TYPE%20DUCT.png';
+  if (key === 'butterfly_rect') return 'duct/BUTTERFLY%20DUCT.png';
+  return 'duct/y-duct.png';
 }
 
 function updateStaticModalPreview(key, f) {
@@ -36,14 +71,22 @@ function updateStaticModalPreview(key, f) {
   const overlay = document.getElementById('duct-static-overlay-modal');
   if (!modal || !canvasWrap || !img || !overlay) return;
 
-  const isY = key === 'y_duct';
-  modal.classList.toggle('is-y-duct', isY);
-  canvasWrap.style.display = isY ? 'none' : 'block';
-  img.style.display = isY ? 'block' : 'none';
-  overlay.style.display = isY ? 'block' : 'none';
+  const isStaticType = key === 'y_duct' || key === 'r_type' || key === 'butterfly_rect';
+  modal.classList.toggle('is-y-duct', key === 'y_duct');
+  modal.classList.toggle('is-static-duct', isStaticType);
+  canvasWrap.style.display = isStaticType ? 'none' : 'block';
+  img.style.display = isStaticType ? 'block' : 'none';
+  overlay.style.display = isStaticType ? 'block' : 'none';
 
-  if (isY) {
-    renderYLabelOverlay(overlay, f);
+  if (isStaticType) {
+    img.src = getStaticImageSrc(key);
+    if (key === 'y_duct') img.alt = 'Y-Duct diagram';
+    else if (key === 'r_type') img.alt = 'R-Type Duct diagram';
+    else img.alt = 'Butterfly Duct diagram';
+
+    if (key === 'y_duct') renderYLabelOverlay(overlay, f);
+    else if (key === 'r_type') renderRTypeLabelOverlay(overlay, f);
+    else renderButterflyLabelOverlay(overlay, f);
   } else {
     overlay.innerHTML = '';
   }
@@ -52,17 +95,28 @@ function updateStaticModalPreview(key, f) {
 function updateStaticPreview(key, f) {
   const wrap = document.getElementById('duct-img-wrap');
   const overlay = document.getElementById('duct-static-overlay');
+  const img = document.getElementById('duct-static-img');
   if (!wrap) return;
-  if (key !== 'y_duct') {
+
+  const isStaticType = key === 'y_duct' || key === 'r_type' || key === 'butterfly_rect';
+  if (!isStaticType) {
     wrap.classList.remove('is-static-y-duct');
     if (overlay) overlay.innerHTML = '';
     return;
   }
 
   wrap.classList.add('is-static-y-duct');
+  if (img) {
+    img.src = getStaticImageSrc(key);
+    if (key === 'y_duct') img.alt = 'Y-Duct diagram';
+    else if (key === 'r_type') img.alt = 'R-Type Duct diagram';
+    else img.alt = 'Butterfly Duct diagram';
+  }
   if (!overlay) return;
 
-  renderYLabelOverlay(overlay, f);
+  if (key === 'y_duct') renderYLabelOverlay(overlay, f);
+  else if (key === 'r_type') renderRTypeLabelOverlay(overlay, f);
+  else renderButterflyLabelOverlay(overlay, f);
 }
 
 function getActive3DContainer() {
@@ -75,7 +129,7 @@ function refresh3DViewer() {
   const f = getVals();
   const typeEl = document.getElementById('duct-3d-modal-type');
   if (typeEl) typeEl.textContent = t ? t.label : '-';
-  if (key === 'y_duct') {
+  if (key === 'y_duct' || key === 'r_type' || key === 'butterfly_rect') {
     updateStaticModalPreview(key, f);
     return;
   }
@@ -100,7 +154,7 @@ function onTypeChange() {
 
   document.getElementById('duct-type-tag').textContent = t.tag;
 
-  if (key === 'y_duct') dispose3DViewer();
+  if (key === 'y_duct' || key === 'r_type' || key === 'butterfly_rect') dispose3DViewer();
   else refresh3DViewer();
 
   const c = document.getElementById('dynamic-fields');
@@ -136,7 +190,7 @@ function updatePreview() {
     p.innerHTML = `<div class="preview-muted">Fill dimensions above to preview surface area</div>`;
   }
   updateStaticPreview(key, f);
-  if (key !== 'y_duct') build3DDuct(key, displayVals);
+  if (key !== 'y_duct' && key !== 'r_type' && key !== 'butterfly_rect') build3DDuct(key, displayVals);
 }
 
 function addItem() {
