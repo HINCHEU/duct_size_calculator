@@ -428,8 +428,8 @@ select.field-input {
 #duct-static-overlay-modal {
   display: none;
 }
-.duct-3d-modal.is-open #duct-static-img-modal,
-.duct-3d-modal.is-open #duct-static-overlay-modal {
+.duct-3d-modal.is-open.is-y-duct #duct-static-img-modal,
+.duct-3d-modal.is-open.is-y-duct #duct-static-overlay-modal {
   display: block;
 }
 .duct-3d-modal-card {
