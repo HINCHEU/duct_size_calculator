@@ -284,7 +284,6 @@ select.field-input {
   background: #fff;
 }
 .duct-diagram.is-static-y-duct:active { cursor: default; }
-.duct-diagram.is-static-y-duct .expand-3d-btn,
 .duct-diagram.is-static-y-duct .dim-hint {
   display: none;
 }
@@ -422,6 +421,14 @@ select.field-input {
 }
 .duct-3d-modal.is-open {
   display: flex;
+}
+#duct-static-img-modal,
+#duct-static-overlay-modal {
+  display: none;
+}
+.duct-3d-modal.is-open #duct-static-img-modal,
+.duct-3d-modal.is-open #duct-static-overlay-modal {
+  display: block;
 }
 .duct-3d-modal-card {
   width: min(980px, 96vw);

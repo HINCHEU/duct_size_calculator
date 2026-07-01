@@ -930,6 +930,36 @@ function getDisplayVals(key, t, vals) {
   return ph;
 }
 
+function updateStaticModalPreview(key, f) {
+  const canvasWrap = document.getElementById('duct-3d-canvas-wrap-modal');
+  const img = document.getElementById('duct-static-img-modal');
+  const overlay = document.getElementById('duct-static-overlay-modal');
+  if (!canvasWrap || !img || !overlay) return;
+  if (key !== 'y_duct') {
+    canvasWrap.style.display = 'block';
+    img.style.display = 'none';
+    overlay.innerHTML = '';
+    return;
+  }
+
+  canvasWrap.style.display = 'none';
+  img.style.display = 'block';
+  const labels = [
+    { id: 'A', title: 'A', cls: 'y-duct-label-a' },
+    { id: 'B', title: 'B', cls: 'y-duct-label-b' },
+    { id: 'E', title: 'E', cls: 'y-duct-label-e' },
+    { id: 'F', title: 'F', cls: 'y-duct-label-f' },
+    { id: 'R', title: 'R', cls: 'y-duct-label-r' },
+    { id: 'L', title: 'L', cls: 'y-duct-label-l' },
+  ];
+  overlay.innerHTML = labels
+    .map(label => {
+      const value = +f[label.id] > 0 ? `${f[label.id]} ` : '';
+      return `<span class="y-duct-label ${label.cls}">${label.title} ${value}mm</span>`;
+    })
+    .join('');
+}
+
 function dispose3DViewer() {
   if (!_3d) return;
   _3d._dead = true;
@@ -962,8 +992,10 @@ function updateStaticPreview(key, f) {
   ];
 
   overlay.innerHTML = labels
-    .filter(label => +f[label.id] > 0)
-    .map(label => `<span class="y-duct-label ${label.cls}">${label.title} ${f[label.id]} mm</span>`)
+    .map(label => {
+      const value = +f[label.id] > 0 ? `${f[label.id]} ` : '';
+      return `<span class="y-duct-label ${label.cls}">${label.title} ${value}mm</span>`;
+    })
     .join('');
 }
 
@@ -977,6 +1009,10 @@ function refresh3DViewer() {
   const f = getVals();
   const typeEl = document.getElementById('duct-3d-modal-type');
   if (typeEl) typeEl.textContent = t ? t.label : '-';
+  if (key === 'y_duct') {
+    updateStaticModalPreview(key, f);
+    return;
+  }
   const container = getActive3DContainer();
   if (!container) return;
   init3DViewer(container);
@@ -1033,7 +1069,7 @@ function updatePreview() {
   } else {
     p.innerHTML = `<div class="preview-muted">Fill dimensions above to preview surface area</div>`;
   }
-  updateStaticPreview(key, displayVals);
+  updateStaticPreview(key, f);
   if (key !== 'y_duct') build3DDuct(key, displayVals);
 }
 
