@@ -13,7 +13,8 @@ function renderStaticLabelOverlay(overlay, f, labels) {
   if (!overlay) return;
   overlay.innerHTML = labels
     .map(label => {
-      const value = +f[label.id] > 0 ? `${f[label.id]} mm` : '';
+      const hasFieldValue = label.id && +f[label.id] > 0;
+      const value = hasFieldValue ? `${f[label.id]} mm` : '';
       return `<span class="y-duct-label ${label.cls}">${label.title}${value ? ' ' + value : ''}</span>`;
     })
     .join('');
@@ -29,6 +30,7 @@ function renderYLabelOverlay(overlay, f) {
     { id: 'D', title: 'D', cls: 'y-duct-label-d' },
     { id: 'R', title: 'R', cls: 'y-duct-label-r' },
     { id: 'L', title: 'L', cls: 'y-duct-label-l' },
+    { title: 'Angular', cls: 'y-duct-label-angular' },
   ]);
 }
 
@@ -42,6 +44,7 @@ function renderRTypeLabelOverlay(overlay, f) {
     { id: 'D2', title: 'D', cls: 'r-type-label-d' },
     { id: 'R', title: 'R', cls: 'r-type-label-r' },
     { id: 'L', title: 'L', cls: 'r-type-label-l' },
+    { title: 'Angular', cls: 'r-type-label-angle' },
   ]);
 }
 
@@ -55,6 +58,8 @@ function renderButterflyLabelOverlay(overlay, f) {
     { id: 'E', title: 'E', cls: 'butterfly-label-e' },
     { id: 'F', title: 'F', cls: 'butterfly-label-f' },
     { id: 'R2', title: 'R2', cls: 'butterfly-label-r2' },
+    { title: 'Angular', cls: 'butterfly-label-angular-top-left' },
+    { title: 'Angular', cls: 'butterfly-label-angular-top-right' },
   ]);
 }
 

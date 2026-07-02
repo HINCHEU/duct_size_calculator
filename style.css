@@ -325,7 +325,7 @@ select.field-input {
   white-space: nowrap;
   box-shadow: 0 1px 6px rgba(0,0,0,0.12);
 }
-.y-duct-label-a { top: 14%; right: 14%; }
+.y-duct-label-a { top: 5%; right: 25%; }
 .y-duct-label-b { top: 34%; right: 16%; }
 .y-duct-label-e { top: 38%; left: 16%; }
 .y-duct-label-f { top: 62%; left: 16%; }
@@ -333,28 +333,32 @@ select.field-input {
 .y-duct-label-d { top: 82%; left: 60%; }
 .y-duct-label-r { top: 52%; left: 42%; }
 .y-duct-label-l { top: 10%; left: 42%; }
+.y-duct-label-angular { top: 24%; left: 56%; }
 .r-type-label,
 .butterfly-label {
   transform: translate(-50%, -50%);
   text-align: center;
   min-width: 32px;
 }
-.r-type-label-a { top: 74%; left: 6%; }
-.r-type-label-b { top: 50%; left: 6%; }
+.r-type-label-a { top: 74%; left: 24%; }
+.r-type-label-b { top: 50%; left: 12%; }
 .r-type-label-e { top: 60%; right: 8%; }
-.r-type-label-f { top: 38%; right: 14%; }
-.r-type-label-c { top: 12%; right: 14%; }
-.r-type-label-d { top: 82%; right: 12%; }
-.r-type-label-r { top: 52%; left: 50%; }
-.r-type-label-l { top: 14%; left: 48%; }
+.r-type-label-f { top: 72%; right: 22%; }
+.r-type-label-c { top: 5%; right: 37%; }
+.r-type-label-d { top: 30%; right: 25%; }
+.r-type-label-r { top: 90%; left: 55%; }
+.r-type-label-l { top: 12%; left: 30%; }
+.r-type-label-angle { top: 18%; left: 58%; }
 .butterfly-label-a { top: 88%; left: 50%; }
 .butterfly-label-b { top: 76%; left: 24%; }
 .butterfly-label-c { top: 20%; left: 14%; }
 .butterfly-label-d { top: 42%; left: 10%; }
-.butterfly-label-r1 { top: 16%; left: 34%; }
+.butterfly-label-r1 { top: 75%; left: 15%; }
 .butterfly-label-e { top: 24%; right: 12%; }
 .butterfly-label-f { top: 48%; right: 10%; }
-.butterfly-label-r2 { top: 16%; left: 66%; }
+.butterfly-label-r2 { top: 75%; left: 75%; }
+.butterfly-label-angular-top-left { top: 10%; left: 32%; }
+.butterfly-label-angular-top-right { top: 10%; left: 68%; }
 .y-duct-static {
   width: 100%;
   height: 100%;
