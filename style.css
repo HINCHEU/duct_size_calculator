@@ -340,8 +340,8 @@ select.field-input {
   text-align: center;
   min-width: 32px;
 }
-.r-type-label-a { top: 74%; left: 24%; }
-.r-type-label-b { top: 50%; left: 12%; }
+.r-type-label-a { top: 90%; left: 35%; }
+.r-type-label-b { top: 80%; left: 20%; }
 .r-type-label-e { top: 60%; right: 8%; }
 .r-type-label-f { top: 72%; right: 22%; }
 .r-type-label-c { top: 5%; right: 37%; }
@@ -349,6 +349,27 @@ select.field-input {
 .r-type-label-r { top: 90%; left: 55%; }
 .r-type-label-l { top: 12%; left: 30%; }
 .r-type-label-angle { top: 18%; left: 58%; }
+.r-type-round-two-label-d1,
+.r-type-round-two-label-l1,
+.r-type-round-two-label-l2,
+.r-type-round-two-label-d2,
+.r-type-round-two-label-l3,
+.r-type-round-two-label-r,
+.r-type-round-two-label-angular-left,
+.r-type-round-two-label-angular-right {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  min-width: 32px;
+}
+.r-type-round-two-label-d1 { top: 12%; left: 40%; }
+.r-type-round-two-label-l1 { top: 48%; left: 8%; }
+.r-type-round-two-label-l2 { top: 25%; left: 14%; }
+.r-type-round-two-label-d2 { top: 42%; left: 91%; transform: translate(-50%, -50%); }
+.r-type-round-two-label-l3 { top: 70%; left: 76%; transform: translate(-50%, -50%); }
+.r-type-round-two-label-r { top: 90%; left: 60%; }
+.r-type-round-two-label-angular-left { top: 4%; left: 26%; }
+.r-type-round-two-label-angular-right { top: 4%; left: 64%; }
 .butterfly-label-a { top: 88%; left: 50%; }
 .butterfly-label-b { top: 76%; left: 24%; }
 .butterfly-label-c { top: 20%; left: 14%; }
@@ -359,6 +380,25 @@ select.field-input {
 .butterfly-label-r2 { top: 75%; left: 75%; }
 .butterfly-label-angular-top-left { top: 10%; left: 32%; }
 .butterfly-label-angular-top-right { top: 10%; left: 68%; }
+/* One-side-round butterfly overlay positions (round outlet on the left) */
+.butterfly-round-label-a { top: 86%; left: 50%; }
+.butterfly-round-label-b { top: 74%; left: 26%; }
+.butterfly-round-label-d-left { top: 30%; left: 4%; }
+.butterfly-round-label-l-left { top: 59%; left: 15%; }
+.butterfly-round-label-r1 { top: 76%; left: 18%; }
+.butterfly-round-label-e-right { top: 25%; right: 5%; }
+.butterfly-round-label-f { top: 48%; right: 12%; }
+.butterfly-round-label-r2 { top: 76%; left: 74%; }
+.butterfly-round-label-angular-left { top: 6%; left: 36%; }
+.butterfly-round-label-angular-right { top: 6%; left: 55%; }
+.butterfly-round-two-label-d1 { left: 35px; top: 80px; position: absolute; }
+.butterfly-round-two-label-l1 { left: 35px; top: 110px; position: absolute; }
+.butterfly-round-two-label-r1 { left: 35px; top: 140px; position: absolute; }
+.butterfly-round-two-label-d2 { right: 35px; top: 80px; position: absolute; }
+.butterfly-round-two-label-l2 { right: 35px; top: 110px; position: absolute; }
+.butterfly-round-two-label-r2 { right: 35px; top: 140px; position: absolute; }
+.butterfly-round-two-label-angular-left { top: 6%; left: 32%; }
+.butterfly-round-two-label-angular-right { top: 6%; left: 68%; }
 .y-duct-static {
   width: 100%;
   height: 100%;

@@ -515,6 +515,8 @@ function build3DDuct(key, f) {
       ];
       _fitCam(L, B + FF, A + E); break;
     }
+    case 'butterfly_round':
+    case 'butterfly_round_two':
     case 'butterfly_rect': {
       const A = (+f.A || 400) * S, B = (+f.B || 300) * S, C = (+f.C || 300) * S, D = (+f.D2 || 250) * S;
       const R1 = (+f.R1 || 200) * S, E = (+f.E || 300) * S, FF = (+f.F || 250) * S, R2 = (+f.R2 || 200) * S;

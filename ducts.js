@@ -47,30 +47,62 @@ const DUCTS = {
     // Excel: Perimeter=2*(A+B)/1000 (larger end), EqLen=L/1000*1.2
     area: f => { const a = +f.A, b = +f.B, l = +f.L; return 2 * (a + b) / 1000 * (l / 1000 * 1.2); },
   },
-  rect_to_round: {
-    label: 'Rectangle to Round',
-    tag: 'Rect→Round',
-    fields: [{ id: 'A', label: 'Rect Width A' }, { id: 'B', label: 'Rect Height B' }, { id: 'D', label: 'Round Ø' }, { id: 'L', label: 'Length L' }],
-    calc: f => `Rect→Round: ${f.A}×${f.B}→Ø${f.D}×L${f.L}`,
-    // Excel: Perimeter=2*(A+B)/1000 (larger rect end), EqLen=L/1000*1.2
-    area: f => 2 * ((+f.A) + (+f.B)) / 1000 * ((+f.L) / 1000 * 1.2),
+  butterfly_round: {
+    label: 'Butterfly Duct (One Side Round)',
+    tag: 'Butterfly',
+    // Main A×B, Left branch ROUND: diameter D and length L, Left radius R1, Right branch RECT: E×F and radius R2
+    fields: [
+      { id: 'A', label: 'Main Width A' },
+      { id: 'B', label: 'Main Height B' },
+      { id: 'D', label: 'Left Round Ø (D)' },
+      { id: 'L', label: 'Left Length L' },
+      { id: 'R1', label: 'Left Radius R1' },
+      { id: 'E', label: 'Right Width E' },
+      { id: 'F', label: 'Right Height F' },
+      { id: 'R2', label: 'Right Radius R2' }
+    ],
+    calc: f => `Butterfly(OneRound): ${f.A}×${f.B} → Ø${f.D}L${f.L}R${f.R1} ↔ ${f.E}×${f.F}R${f.R2}`,
+    // area: left round branch (perimeter PI*D * (elbow equiv + length)) + right rectangular branch (perimeter*elbow length) + main neck
+    area: f => {
+      const a = +f.A, b = +f.B, d = +f.D, l = +f.L, r1 = +f.R1, e = +f.E, ff = +f.F, r2 = +f.R2;
+      const leftPerim = Math.PI * (d / 1000);
+      // treat left effective length as L + R1*1.2 (bend equiv)
+      const leftLen = (l / 1000) + (r1 / 1000 * 1.2);
+      const leftArea = leftPerim * leftLen;
+      const rightPerim = 2 * (e + ff) / 1000;
+      const rightLen = Math.PI / 2 * r2 / 1000;
+      const rightArea = rightPerim * rightLen;
+      const neck = 2 * (a + b) / 1000 * ((r1 + r2) / 2 / 1000);
+      return leftArea + rightArea + neck;
+    },
   },
-  reducer_duct: {
-    label: 'Reducer Duct (A×B→C×D×L)',
-    tag: 'Reducer Duct',
-    fields: [{ id: 'A', label: 'Large Width A' }, { id: 'B', label: 'Large Height B' }, { id: 'C', label: 'Small Width C' }, { id: 'D2', label: 'Small Height D' }, { id: 'L', label: 'Length L' }],
-    calc: f => `Reducer: ${f.A}×${f.B}→${f.C}×${f.D2}×L${f.L}`,
-    // Excel: Perimeter=2*(A+B)/1000 (larger end), EqLen=L/1000*1.2
-    area: f => { const a = +f.A, b = +f.B, l = +f.L; return 2 * (a + b) / 1000 * (l / 1000 * 1.2); },
-  },
-  reducer_duct_r: {
-    label: 'Reducer Duct with Offset R',
-    tag: 'Reducer+Offset',
-    fields: [{ id: 'A', label: 'Large Width A' }, { id: 'B', label: 'Large Height B' }, { id: 'C', label: 'Small Width C' }, { id: 'D2', label: 'Small Height D' }, { id: 'L', label: 'Length L' }, { id: 'R', label: 'Offset R' }],
-    calc: f => `Reducer+offset: ${f.A}×${f.B}→${f.C}×${f.D2}×L${f.L}×R${f.R}`,
-    // Excel: Perimeter=2*(A+B)/1000 (larger end), EqLen=L/1000*1.2
-    area: f => { const a = +f.A, b = +f.B, l = +f.L; return 2 * (a + b) / 1000 * (l / 1000 * 1.2); },
-  },
+    butterfly_round_two: {
+      label: 'Butterfly Duct (Two Side Round)',
+      tag: 'Butterfly',
+      // Main A×B, Left ROUND: D1,L1,R1; Right ROUND: D2,L2,R2
+      fields: [
+        { id: 'A', label: 'Main Width A' },
+        { id: 'B', label: 'Main Height B' },
+        { id: 'D1', label: 'Left Ø D1' },
+        { id: 'L1', label: 'Left Length L1' },
+        { id: 'R1', label: 'Left Radius R1' },
+        { id: 'D2', label: 'Right Ø D2' },
+        { id: 'L2', label: 'Right Length L2' },
+        { id: 'R2', label: 'Right Radius R2' }
+      ],
+      calc: f => `Butterfly(2Round): ${f.A}×${f.B} → Ø${f.D1}L${f.L1}R${f.R1} ↔ Ø${f.D2}L${f.L2}R${f.R2}`,
+      area: f => {
+        const a = +f.A, b = +f.B, d1 = +f.D1, l1 = +f.L1, r1 = +f.R1, d2 = +f.D2, l2 = +f.L2, r2 = +f.R2;
+        const leftPerim = Math.PI * (d1 / 1000);
+        const leftLen = (l1 / 1000) + (r1 / 1000 * 1.2);
+        const leftArea = leftPerim * leftLen;
+        const rightPerim = Math.PI * (d2 / 1000);
+        const rightLen = (l2 / 1000) + (r2 / 1000 * 1.2);
+        const rightArea = rightPerim * rightLen;
+        const neck = 2 * (a + b) / 1000 * ((r1 + r2) / 2 / 1000);
+        return leftArea + rightArea + neck;
+      },
+    },
   collar_duct: {
     label: 'Collar Duct',
     tag: 'Collar',
@@ -121,6 +153,7 @@ const DUCTS = {
       return 2 * (c + d) / 1000 * (Math.PI / 2 * r1 / 1000) + 2 * (e + ff) / 1000 * (Math.PI / 2 * r2 / 1000) + 2 * (a + b) / 1000 * ((r1 + r2) / 2 / 1000);
     },
   },
+  
   r_type: {
     label: 'R-Type Duct',
     tag: 'R-Type',
@@ -131,6 +164,32 @@ const DUCTS = {
       const a = +f.A, b = +f.B, c = +f.C, d = +f.D2, e = +f.E, ff = +f.F, l = +f.L, r = +f.R;
       return 2 * (a + b) / 1000 * (l / 1000 * 0.5) + 2 * (c + d) / 1000 * (Math.PI / 2 * r / 1000) + 2 * (e + ff) / 1000 * (l / 1000 * 0.5);
     },
+  },
+  r_type_round_two: {
+    label: 'R-Type Duct (Round Two Side)',
+    tag: 'R-Type',
+    fields: [
+      { id: 'A', label: 'Main Width A' },
+      { id: 'B', label: 'Main Height B' },
+      { id: 'D1', label: 'Top Round Ø D1' },
+      { id: 'L1', label: 'Top Branch L1' },
+      { id: 'L2', label: 'Top Branch L2' },
+      { id: 'D2', label: 'Side Round Ø D2' },
+      { id: 'L3', label: 'Side Branch L3' },
+      { id: 'R', label: 'Radius R' }
+    ],
+    calc: f => `R-Type Round(2Side): ${f.A}×${f.B} → Ø${f.D1}L${f.L1}+L${f.L2} + Ø${f.D2}L${f.L3}R${f.R}`,
+    area: f => {
+      const a = +f.A, b = +f.B, d1 = +f.D1, l1 = +f.L1, l2 = +f.L2, d2 = +f.D2, l3 = +f.L3, r = +f.R;
+      const topPerim = Math.PI * (d1 / 1000);
+      const topLen = (l1 / 1000) + (l2 / 1000) + (r / 1000 * 1.2);
+      const topArea = topPerim * topLen;
+      const sidePerim = Math.PI * (d2 / 1000);
+      const sideLen = (l3 / 1000) + (r / 1000 * 1.2);
+      const sideArea = sidePerim * sideLen;
+      const neck = 2 * (a + b) / 1000 * (r / 1000 * 1.2);
+      return topArea + sideArea + neck;
+    }
   },
   plenum_box: {
     label: 'Plenum Box (Side Inlet)',
