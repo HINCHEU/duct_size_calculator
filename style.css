@@ -370,6 +370,16 @@ select.field-input {
 .r-type-round-two-label-r { top: 90%; left: 60%; }
 .r-type-round-two-label-angular-left { top: 4%; left: 26%; }
 .r-type-round-two-label-angular-right { top: 4%; left: 64%; }
+.four-way-label-a1 { top: 92%; left: 50%; }
+.four-way-label-a2 { top: 72%; left: 84%; }
+.four-way-label-a3 { top: 72%; left: 16%; }
+.four-way-label-a4 { top: 12%; left: 50%; }
+.four-way-label-b1 { top: 58%; left: 22%; }
+.four-way-label-b2 { top: 34%; left: 86%; }
+.four-way-label-b3 { top: 34%; left: 14%; }
+.four-way-label-b4 { top: 14%; left: 50%; }
+.four-way-label-angular1 { top: 6%; left: 16%; }
+.four-way-label-angular2 { top: 6%; left: 84%; }
 .butterfly-label-a { top: 88%; left: 50%; }
 .butterfly-label-b { top: 76%; left: 24%; }
 .butterfly-label-c { top: 20%; left: 14%; }

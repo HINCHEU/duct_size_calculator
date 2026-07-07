@@ -84,6 +84,21 @@ function renderButterflyLabelOverlay(overlay, f) {
   ]);
 }
 
+function renderFourWaysLabelOverlay(overlay, f) {
+  renderStaticLabelOverlay(overlay, f, [
+    { id: 'A', title: 'A1', cls: 'four-way-label-a1' },
+    { id: 'C', title: 'A2', cls: 'four-way-label-a2' },
+    { id: 'C', title: 'A3', cls: 'four-way-label-a3' },
+    { id: 'C', title: 'A4', cls: 'four-way-label-a4' },
+    { id: 'B', title: 'B1', cls: 'four-way-label-b1' },
+    { id: 'D2', title: 'B2', cls: 'four-way-label-b2' },
+    { id: 'D2', title: 'B3', cls: 'four-way-label-b3' },
+    { id: 'D2', title: 'B4', cls: 'four-way-label-b4' },
+    { title: 'Angular1', cls: 'four-way-label-angular1' },
+    { title: 'Angular2', cls: 'four-way-label-angular2' },
+  ]);
+}
+
 function renderButterflyRoundLabelOverlay(overlay, f) {
   // Positions tuned for the one-side-round static image (round outlet on the left)
   renderStaticLabelOverlay(overlay, f, [
@@ -118,6 +133,7 @@ function renderButterflyRoundTwoLabelOverlay(overlay, f) {
 function getStaticImageSrc(key) {
   if (key === 'r_type') return 'duct/R-TYPE%20DUCT.png';
   if (key === 'r_type_round_two') return 'duct/R-Type-duct-round-two-side.png';
+  if (key === '4ways') return 'duct/4-way-duct.png';
   if (key === 'butterfly_round') return 'duct/butterfly-duct-round-out-one-side.png';
   if (key === 'butterfly_round_two') return 'duct/Butterfly-duct-round-two-side.png';
   if (key === 'butterfly_rect') return 'duct/BUTTERFLY%20DUCT.png';
@@ -131,7 +147,7 @@ function updateStaticModalPreview(key, f) {
   const overlay = document.getElementById('duct-static-overlay-modal');
   if (!modal || !canvasWrap || !img || !overlay) return;
 
-  const isStaticType = key === 'y_duct' || key === 'r_type' || key === 'r_type_round_two' || key === 'butterfly_rect' || key === 'butterfly_round' || key === 'butterfly_round_two';
+  const isStaticType = key === 'y_duct' || key === 'r_type' || key === 'r_type_round_two' || key === '4ways' || key === 'butterfly_rect' || key === 'butterfly_round' || key === 'butterfly_round_two';
   modal.classList.toggle('is-y-duct', key === 'y_duct');
   modal.classList.toggle('is-static-duct', isStaticType);
   canvasWrap.style.display = isStaticType ? 'none' : 'block';
@@ -142,10 +158,12 @@ function updateStaticModalPreview(key, f) {
     img.src = getStaticImageSrc(key);
     if (key === 'y_duct') img.alt = 'Y-Duct diagram';
     else if (key === 'r_type' || key === 'r_type_round_two') img.alt = 'R-Type Duct diagram';
+    else if (key === '4ways') img.alt = '4-Ways Duct diagram';
     else img.alt = 'Butterfly Duct diagram';
     if (key === 'y_duct') renderYLabelOverlay(overlay, f);
     else if (key === 'r_type') renderRTypeLabelOverlay(overlay, f);
     else if (key === 'r_type_round_two') renderRTypeRoundTwoLabelOverlay(overlay, f);
+    else if (key === '4ways') renderFourWaysLabelOverlay(overlay, f);
     else if (key === 'butterfly_round') renderButterflyRoundLabelOverlay(overlay, f);
     else if (key === 'butterfly_round_two') renderButterflyRoundTwoLabelOverlay(overlay, f);
     else renderButterflyLabelOverlay(overlay, f);
@@ -160,7 +178,7 @@ function updateStaticPreview(key, f) {
   const img = document.getElementById('duct-static-img');
   if (!wrap) return;
 
-  const isStaticType = key === 'y_duct' || key === 'r_type' || key === 'r_type_round_two' || key === 'butterfly_rect' || key === 'butterfly_round' || key === 'butterfly_round_two';
+  const isStaticType = key === 'y_duct' || key === 'r_type' || key === 'r_type_round_two' || key === '4ways' || key === 'butterfly_rect' || key === 'butterfly_round' || key === 'butterfly_round_two';
   if (!isStaticType) {
     wrap.classList.remove('is-static-y-duct');
     if (overlay) overlay.innerHTML = '';
@@ -179,6 +197,7 @@ function updateStaticPreview(key, f) {
   if (key === 'y_duct') renderYLabelOverlay(overlay, f);
   else if (key === 'r_type') renderRTypeLabelOverlay(overlay, f);
   else if (key === 'r_type_round_two') renderRTypeRoundTwoLabelOverlay(overlay, f);
+  else if (key === '4ways') renderFourWaysLabelOverlay(overlay, f);
   else if (key === 'butterfly_round') renderButterflyRoundLabelOverlay(overlay, f);
   else if (key === 'butterfly_round_two') renderButterflyRoundTwoLabelOverlay(overlay, f);
   else renderButterflyLabelOverlay(overlay, f);
@@ -194,7 +213,7 @@ function refresh3DViewer() {
   const f = getVals();
   const typeEl = document.getElementById('duct-3d-modal-type');
   if (typeEl) typeEl.textContent = t ? t.label : '-';
-  if (key === 'y_duct' || key === 'r_type' || key === 'r_type_round_two' || key === 'butterfly_rect' || key === 'butterfly_round' || key === 'butterfly_round_two') {
+  if (key === 'y_duct' || key === 'r_type' || key === 'r_type_round_two' || key === '4ways' || key === 'butterfly_rect' || key === 'butterfly_round' || key === 'butterfly_round_two') {
     updateStaticModalPreview(key, f);
     return;
   }
@@ -219,7 +238,7 @@ function onTypeChange() {
 
   document.getElementById('duct-type-tag').textContent = t.tag;
 
-  if (key === 'y_duct' || key === 'r_type' || key === 'r_type_round_two' || key === 'butterfly_rect' || key === 'butterfly_round' || key === 'butterfly_round_two') dispose3DViewer();
+  if (key === 'y_duct' || key === 'r_type' || key === 'r_type_round_two' || key === '4ways' || key === 'butterfly_rect' || key === 'butterfly_round' || key === 'butterfly_round_two') dispose3DViewer();
   else refresh3DViewer();
 
   const c = document.getElementById('dynamic-fields');
@@ -256,7 +275,7 @@ function updatePreview() {
     p.innerHTML = `<div class="preview-muted">Fill dimensions above to preview surface area</div>`;
   }
   updateStaticPreview(key, f);
-  if (key !== 'y_duct' && key !== 'r_type' && key !== 'r_type_round_two' && key !== 'butterfly_rect' && key !== 'butterfly_round' && key !== 'butterfly_round_two') build3DDuct(key, displayVals);
+  if (key !== 'y_duct' && key !== 'r_type' && key !== 'r_type_round_two' && key !== '4ways' && key !== 'butterfly_rect' && key !== 'butterfly_round' && key !== 'butterfly_round_two') build3DDuct(key, displayVals);
 }
 
 function addItem() {
