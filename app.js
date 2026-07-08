@@ -6,7 +6,7 @@ function getDisplayVals(key, t, vals) {
   const ok = required.every(x => +vals[x.id] > 0);
   if (ok) return vals;
   const ph = {};
-  t.fields.forEach(f => { ph[f.id] = +vals[f.id] > 0 ? +vals[f.id] : 400; });
+  t.fields.forEach(f => { ph[f.id] = +vals[f.id] > 0 ? +vals[f.id] : 0; });
   return ph;
 }
 
@@ -96,6 +96,8 @@ function renderFourWaysLabelOverlay(overlay, f) {
     { id: 'D2', title: 'B4', cls: 'four-way-label-b4' },
     { title: 'Angular1', cls: 'four-way-label-angular1' },
     { title: 'Angular2', cls: 'four-way-label-angular2' },
+    { id: 'R', title: 'R1', cls: 'four-way-label-r1' },
+    { id: 'R', title: 'R2', cls: 'four-way-label-r2' },
   ]);
 }
 

@@ -76,33 +76,33 @@ const DUCTS = {
       return leftArea + rightArea + neck;
     },
   },
-    butterfly_round_two: {
-      label: 'Butterfly Duct (Two Side Round)',
-      tag: 'Butterfly',
-      // Main A×B, Left ROUND: D1,L1,R1; Right ROUND: D2,L2,R2
-      fields: [
-        { id: 'A', label: 'Main Width A' },
-        { id: 'B', label: 'Main Height B' },
-        { id: 'D1', label: 'Left Ø D1' },
-        { id: 'L1', label: 'Left Length L1' },
-        { id: 'R1', label: 'Left Radius R1' },
-        { id: 'D2', label: 'Right Ø D2' },
-        { id: 'L2', label: 'Right Length L2' },
-        { id: 'R2', label: 'Right Radius R2' }
-      ],
-      calc: f => `Butterfly(2Round): ${f.A}×${f.B} → Ø${f.D1}L${f.L1}R${f.R1} ↔ Ø${f.D2}L${f.L2}R${f.R2}`,
-      area: f => {
-        const a = +f.A, b = +f.B, d1 = +f.D1, l1 = +f.L1, r1 = +f.R1, d2 = +f.D2, l2 = +f.L2, r2 = +f.R2;
-        const leftPerim = Math.PI * (d1 / 1000);
-        const leftLen = (l1 / 1000) + (r1 / 1000 * 1.2);
-        const leftArea = leftPerim * leftLen;
-        const rightPerim = Math.PI * (d2 / 1000);
-        const rightLen = (l2 / 1000) + (r2 / 1000 * 1.2);
-        const rightArea = rightPerim * rightLen;
-        const neck = 2 * (a + b) / 1000 * ((r1 + r2) / 2 / 1000);
-        return leftArea + rightArea + neck;
-      },
+  butterfly_round_two: {
+    label: 'Butterfly Duct (Two Side Round)',
+    tag: 'Butterfly',
+    // Main A×B, Left ROUND: D1,L1,R1; Right ROUND: D2,L2,R2
+    fields: [
+      { id: 'A', label: 'Main Width A' },
+      { id: 'B', label: 'Main Height B' },
+      { id: 'D1', label: 'Left Ø D1' },
+      { id: 'L1', label: 'Left Length L1' },
+      { id: 'R1', label: 'Left Radius R1' },
+      { id: 'D2', label: 'Right Ø D2' },
+      { id: 'L2', label: 'Right Length L2' },
+      { id: 'R2', label: 'Right Radius R2' }
+    ],
+    calc: f => `Butterfly(2Round): ${f.A}×${f.B} → Ø${f.D1}L${f.L1}R${f.R1} ↔ Ø${f.D2}L${f.L2}R${f.R2}`,
+    area: f => {
+      const a = +f.A, b = +f.B, d1 = +f.D1, l1 = +f.L1, r1 = +f.R1, d2 = +f.D2, l2 = +f.L2, r2 = +f.R2;
+      const leftPerim = Math.PI * (d1 / 1000);
+      const leftLen = (l1 / 1000) + (r1 / 1000 * 1.2);
+      const leftArea = leftPerim * leftLen;
+      const rightPerim = Math.PI * (d2 / 1000);
+      const rightLen = (l2 / 1000) + (r2 / 1000 * 1.2);
+      const rightArea = rightPerim * rightLen;
+      const neck = 2 * (a + b) / 1000 * ((r1 + r2) / 2 / 1000);
+      return leftArea + rightArea + neck;
     },
+  },
   collar_duct: {
     label: 'Collar Duct',
     tag: 'Collar',
@@ -153,7 +153,7 @@ const DUCTS = {
       return 2 * (c + d) / 1000 * (Math.PI / 2 * r1 / 1000) + 2 * (e + ff) / 1000 * (Math.PI / 2 * r2 / 1000) + 2 * (a + b) / 1000 * ((r1 + r2) / 2 / 1000);
     },
   },
-  
+
   r_type: {
     label: 'R-Type Duct',
     tag: 'R-Type',
@@ -242,11 +242,55 @@ const DUCTS = {
   transfer_air: {
     label: 'Transfer Air Duct',
     tag: 'Transfer Air',
-    fields: [{ id: 'A', label: 'Width A' }, { id: 'B', label: 'Height B' }, { id: 'L', label: 'Length L' }],
-    calc: f => `Transfer air: ${f.A}×${f.B}×L${f.L}`,
-    // Excel: Perimeter = 2*(A+B)/1000, EqLen = L/1000 (straight duct, no multiplier)
-    area: f => 2 * ((+f.A) + (+f.B)) / 1000 * ((+f.L) / 1000),
+    fields: [
+      { id: 'W1', label: 'Right Inlet W1 (inner)' },
+      { id: 'D1', label: 'Duct Depth D1 (inner)' },
+      { id: 'H1', label: 'Right Collar H1' },
+      { id: 'H2', label: 'Right Leg Height H2' },
+      { id: 'W3', label: 'Right Leg Width W3' },
+      { id: 'G',  label: 'Mid Connector Width G' },
+      { id: 'W4', label: 'Left Leg Width W4' },
+      { id: 'H4', label: 'Left Leg Height H4' },
+      { id: 'H3', label: 'Left Collar H3' },
+      { id: 'W2', label: 'Left Outlet W2 (inner)' },
+      { id: 'FL', label: 'Flange Width FL' }
+    ],
+    calc: f => `Transfer air: ${f.W1}×${f.D1} Z-Shape (G=${f.G})`,
+    area: f => {
+      const w1 = +f.W1 || 900, d1 = +f.D1 || 500, w2 = +f.W2 || 900;
+      const h1 = +f.H1 || 350, h2 = +f.H2 || 925, w3 = +f.W3 || 925;
+      const g  = +f.G  || 450, h3 = +f.H3 || 350, h4 = +f.H4 || 925;
+      const w4 = +f.W4 || 925, fl = +f.FL || 50;
+      const connH = Math.max(h2, h4); // connector height auto from legs
+
+      // Right leg (4-wall tube): perimeter × (body H2 + collar H1)
+      const rightLegArea = 2 * (w3 + d1) * h2 / 1e6;
+      // Right collar trapezoid panels (front/back/2 sides)
+      const rightCollarArea = (2 * d1 * h1 + 2 * ((w3 + w1) / 2) * h1) / 1e6;
+      // Right flange ring
+      const rightFlangeArea = (2 * (w1 + 2*fl) * fl + 2 * d1 * fl) / 1e6;
+
+      // Connector (G section): front+back+top+bottom panels
+      const connArea = (2 * g * connH + 2 * g * d1) / 1e6;
+
+      // Left leg (4-wall tube): perimeter × body H4
+      const leftLegArea = 2 * (w4 + d1) * h4 / 1e6;
+      // Left collar trapezoid panels
+      const leftCollarArea = (2 * d1 * h3 + 2 * ((w4 + w2) / 2) * h3) / 1e6;
+      // Left flange ring
+      const leftFlangeArea = (2 * (w2 + 2*fl) * fl + 2 * d1 * fl) / 1e6;
+
+      // Deduct open inlet/outlet holes
+      const rightHole = w1 * d1 / 1e6;
+      const leftHole  = w2 * d1 / 1e6;
+
+      return rightLegArea + rightCollarArea + rightFlangeArea
+           + connArea
+           + leftLegArea + leftCollarArea + leftFlangeArea
+           - rightHole - leftHole;
+    },
   },
+
   '4ways': {
     label: '4-Ways Duct',
     tag: '4-Ways',

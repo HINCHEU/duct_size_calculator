@@ -549,22 +549,69 @@ function build3DDuct(key, f) {
 
   switch (key) {
 
-    // ──── Rectangular Straight / Transfer Air ────
-    case 'rect_straight': case 'transfer_air': {
+    // ──── Rectangular Straight ────
+    case 'rect_straight': {
       const W = (+f.A || 400) * S, H = (+f.B || 300) * S, L = (+f.L || 600) * S, T = Math.min(W, H) * 0.09;
       _hollowRect(pivot, L, W, H, T);
       _flangeRect(pivot, -L / 2, W, H, m); _flangeRect(pivot, L / 2, W, H, m);
-      if (key === 'transfer_air') {
-        // top/bottom diffuser grilles
-        [-W / 2 * 0.4, 0, W / 2 * 0.4].forEach(pz => {
-          const sg = new THREE.BoxGeometry(L * 0.9, H * 0.1, 0.01); const sm = new THREE.Mesh(sg, m.edge && new THREE.MeshPhongMaterial({ color: 0x445566, side: THREE.DoubleSide })); sm.position.set(0, H / 2, pz); pivot.add(sm);
-        });
-      }
       _3d.dimLines = [
         { p1: _v3(-L / 2, H / 2 + 0.09, 0), p2: _v3(L / 2, H / 2 + 0.09, 0), text: `${f.L} mm` },
         { p1: _v3(-L / 2 - 0.12, -H / 2, 0), p2: _v3(-L / 2 - 0.12, H / 2, 0), text: `${f.B} mm` },
         { p1: _v3(-L / 2 - 0.12, H / 2 + 0.06, -W / 2), p2: _v3(-L / 2 - 0.12, H / 2 + 0.06, W / 2), text: `${f.A} mm` },
       ]; _fitCam(L, H, W); break;
+    }
+
+    case 'transfer_air': {
+      const w1 = (+f.W1 || 900) * S, d1 = (+f.D1 || 500) * S, w2 = (+f.W2 || 900) * S;
+      const h1 = (+f.H1 || 350) * S, h2 = (+f.H2 || 925) * S, w3 = (+f.W3 || 925) * S;
+      const g = (+f.G || 450) * S, h3 = (+f.H3 || 350) * S, h4 = (+f.H4 || 925) * S;
+      const w4 = (+f.W4 || 925) * S;
+      const T = Math.min(w1, d1) * 0.09;
+
+      const midHeight = Math.max(h2, h4);
+
+      const mLeg = new THREE.Group();
+      _hollowRect(mLeg, g, midHeight, d1, T);
+      pivot.add(mLeg);
+
+      const rLeg = new THREE.Group();
+      _hollowRect(rLeg, h1 + h2, w3, d1, T);
+      _flangeRect(rLeg, (h1 + h2) / 2, w3, d1, m);
+      const rCap = new THREE.Mesh(new THREE.BoxGeometry(T, w3, d1), m.duct);
+      rCap.position.x = -(h1 + h2) / 2 + T / 2;
+      rLeg.add(rCap);
+      rLeg.rotation.z = Math.PI / 2;
+      rLeg.position.set(g / 2 + w3 / 2, -midHeight / 2 + (h1 + h2) / 2, 0);
+      pivot.add(rLeg);
+
+      const lLeg = new THREE.Group();
+      _hollowRect(lLeg, h3 + h4, w4, d1, T);
+      _flangeRect(lLeg, -(h3 + h4) / 2, w4, d1, m);
+      const lCap = new THREE.Mesh(new THREE.BoxGeometry(T, w4, d1), m.duct);
+      lCap.position.x = (h3 + h4) / 2 - T / 2;
+      lLeg.add(lCap);
+      lLeg.rotation.z = Math.PI / 2;
+      lLeg.position.set(-g / 2 - w4 / 2, midHeight / 2 - (h3 + h4) / 2, 0);
+      pivot.add(lLeg);
+
+      const rTopX = g / 2 + w3 / 2, rTopY = -midHeight / 2 + h1 + h2;
+      const lBotX = -g / 2 - w4 / 2, lBotY = midHeight / 2 - h3 - h4;
+      const dimZ = d1 / 2 + 0.05;
+
+      _3d.dimLines = [
+        { p1: _v3(rTopX - w3 / 2, rTopY + 0.1, 0), p2: _v3(rTopX + w3 / 2, rTopY + 0.1, 0), text: f.W1 ? `${f.W1}` : 'W1' },
+        { p1: _v3(rTopX + w3 / 2 + 0.12, rTopY, -d1 / 2), p2: _v3(rTopX + w3 / 2 + 0.12, rTopY, d1 / 2), text: f.D1 ? `${f.D1}` : 'D1' },
+        { p1: _v3(lBotX - w4 / 2, lBotY - 0.1, 0), p2: _v3(lBotX + w4 / 2, lBotY - 0.1, 0), text: f.W2 ? `${f.W2}` : 'W2' },
+        { p1: _v3(g / 2 - 0.05, midHeight / 2, dimZ), p2: _v3(g / 2 - 0.05, rTopY, dimZ), text: f.H1 ? `${f.H1}` : 'H1' },
+        { p1: _v3(rTopX + w3 / 2 + 0.1, -midHeight / 2, dimZ), p2: _v3(rTopX + w3 / 2 + 0.1, rTopY, dimZ), text: f.H2 ? `${f.H2}` : 'H2' },
+        { p1: _v3(g / 2, -midHeight / 2 - 0.1, dimZ), p2: _v3(rTopX + w3 / 2, -midHeight / 2 - 0.1, dimZ), text: f.W3 ? `${f.W3}` : 'W3' },
+        { p1: _v3(-g / 2, 0, dimZ), p2: _v3(g / 2, 0, dimZ), text: f.G ? `${f.G}` : 'G' },
+        { p1: _v3(-g / 2 + 0.05, lBotY, dimZ), p2: _v3(-g / 2 + 0.05, -midHeight / 2, dimZ), text: f.H3 ? `${f.H3}` : 'H3' },
+        { p1: _v3(lBotX - w4 / 2 - 0.1, lBotY, dimZ), p2: _v3(lBotX - w4 / 2 - 0.1, midHeight / 2, dimZ), text: f.H4 ? `${f.H4}` : 'H4' },
+        { p1: _v3(lBotX - w4 / 2, midHeight / 2 + 0.1, dimZ), p2: _v3(-g / 2, midHeight / 2 + 0.1, dimZ), text: f.W4 ? `${f.W4}` : 'W4' }
+      ];
+      _fitCam(w4 + g + w3, h3 + midHeight + h1, d1 * 2.5);
+      break;
     }
 
     // ──── Canvas Rect ────
@@ -778,15 +825,15 @@ function build3DDuct(key, f) {
       const A = (+f.A || 200) * S, B = (+f.B || 200) * S;
       const E = (+f.E || 200) * S, FF = (+f.F || 150) * S, L = (+f.L || 375) * S;
       const R = (+f.R || 75) * S;
-    
+
       // pass A,B as the "outlet" C,D too — trunk stays constant, no fake taper
       _hollowYAsymmetric(pivot, A, B, A, B, E, FF, L, R);
-    
+
       const half = L / 2, x_in = -half, x_out = half;
       const z_front = A / 2, z_br_front = A / 2 + R;
       const y_top = B / 2;
       const x_c = Math.min(x_in + R + E, x_out - Math.min(A, B, E, FF) * 0.08);
-    
+
       _3d.dimLines = [
         { p1: _v3(x_in, y_top + 0.08, -A / 2), p2: _v3(x_out, y_top + 0.08, -A / 2), text: `L ${f.L} mm` },
         { p1: _v3(x_in - 0.08, -B / 2, -A / 2), p2: _v3(x_in - 0.08, B / 2, -A / 2), text: `B ${f.B} mm` },

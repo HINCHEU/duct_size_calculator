@@ -30,12 +30,12 @@ function init3DViewer(container) {
   const autoRotateSpeed = 0.0035;
   const pivot = new THREE.Group(); scene.add(pivot);
 
-  let isDragging = false, prevX = 0, prevY = 0;
+  let isDragging = false, prevX = 0, prevY = 0, lastDragTime = 0;
   const el = renderer.domElement;
   el.addEventListener('mousedown', e => { isDragging = true; prevX = e.clientX; prevY = e.clientY; e.preventDefault(); });
   el.addEventListener('touchstart', e => { if (e.touches.length === 1) { isDragging = true; prevX = e.touches[0].clientX; prevY = e.touches[0].clientY; } }, { passive: true });
-  window.addEventListener('mouseup', () => { isDragging = false; });
-  window.addEventListener('touchend', () => { isDragging = false; });
+  window.addEventListener('mouseup', () => { isDragging = false; lastDragTime = Date.now(); });
+  window.addEventListener('touchend', () => { isDragging = false; lastDragTime = Date.now(); });
   window.addEventListener('mousemove', e => {
     if (!isDragging || (_3d && _3d._dead)) return;
     rotY += (e.clientX - prevX) * 0.012; rotX += (e.clientY - prevY) * 0.008;
@@ -81,7 +81,7 @@ function init3DViewer(container) {
   function animate() {
     if (state._dead) return;
     state.rafId = requestAnimationFrame(animate);
-    if (!isDragging) rotY += autoRotateSpeed;
+    if (!isDragging && (Date.now() - lastDragTime < 1000)) rotY += autoRotateSpeed;
     pivot.rotation.x = rotX; pivot.rotation.y = rotY;
     camera.position.set(bx * zoom, by * zoom, bz * zoom); camera.lookAt(0, 0, 0);
     renderer.render(scene, camera);
@@ -327,37 +327,232 @@ function build3DDuct(key, f) {
   const S = 1 / 800;
 
   switch (key) {
-    case 'rect_straight': case 'transfer_air': {
+    case 'rect_straight': {
       const W = (+f.A || 400) * S, H = (+f.B || 300) * S, L = (+f.L || 600) * S, T = Math.min(W, H) * 0.09;
       _hollowRect(pivot, L, W, H, T);
       _flangeRect(pivot, -L / 2, W, H, m); _flangeRect(pivot, L / 2, W, H, m);
-      if (key === 'transfer_air') {
-        [-W / 2 * 0.4, 0, W / 2 * 0.4].forEach(pz => {
-          const sg = new THREE.BoxGeometry(L * 0.9, H * 0.1, 0.01); const sm = new THREE.Mesh(sg, m.edge && new THREE.MeshPhongMaterial({ color: 0x445566, side: THREE.DoubleSide })); sm.position.set(0, H / 2, pz); pivot.add(sm);
-        });
-      }
       _3d.dimLines = [
-        { p1: _v3(-L / 2, H / 2 + 0.09, 0), p2: _v3(L / 2, H / 2 + 0.09, 0), text: `${f.L} mm` },
-        { p1: _v3(-L / 2 - 0.12, -H / 2, 0), p2: _v3(-L / 2 - 0.12, H / 2, 0), text: `${f.B} mm` },
-        { p1: _v3(-L / 2 - 0.12, H / 2 + 0.06, -W / 2), p2: _v3(-L / 2 - 0.12, H / 2 + 0.06, W / 2), text: `${f.A} mm` },
+        { p1: _v3(-L / 2, H / 2 + 0.09, 0), p2: _v3(L / 2, H / 2 + 0.09, 0), text: f.L ? `${f.L} mm` : 'L' },
+        { p1: _v3(-L / 2 - 0.12, -H / 2, 0), p2: _v3(-L / 2 - 0.12, H / 2, 0), text: f.B ? `${f.B} mm` : 'B' },
+        { p1: _v3(-L / 2 - 0.12, H / 2 + 0.06, -W / 2), p2: _v3(-L / 2 - 0.12, H / 2 + 0.06, W / 2), text: f.A ? `${f.A} mm` : 'A' },
       ]; _fitCam(L, H, W); break;
     }
+    case 'transfer_air': {
+      // ── Dimensions (11 fields, HM/T/O removed) ──────────────────────────
+      // All 3 sections (right leg, connector, left leg) share same Y range.
+      // Connector height is auto = max(h2, h4).
+      // Right collar rises ABOVE → inlet at top-right.
+      // Left collar drops BELOW  → outlet at bottom-left.  (Z-shape)
+      const w1 = (+f.W1 || 900) * S;   // right inlet inner width
+      const d1 = (+f.D1 || 500) * S;   // duct depth (Z axis)
+      const h1 = (+f.H1 || 350) * S;   // right collar height (rise above body)
+      const h2 = (+f.H2 || 925) * S;   // right leg body height
+      const w3 = (+f.W3 || 925) * S;   // right leg body width
+      const g  = (+f.G  || 450) * S;   // horizontal connector width (user fills)
+      const w4 = (+f.W4 || 925) * S;   // left leg body width
+      const h4 = (+f.H4 || 925) * S;   // left leg body height
+      const h3 = (+f.H3 || 350) * S;   // left collar height (drop below body)
+      const w2 = (+f.W2 || 900) * S;   // left outlet inner width
+      const fl = (+f.FL ||  50) * S;   // flange protrusion
+
+      const connH = Math.max(h2, h4);  // connector height derived from legs
+      const Tw = Math.min(d1, w3) * 0.04; // wall thickness for rendering
+
+      // ── Helpers ──────────────────────────────────────────────────────────
+
+      // Hollow rectangular tube along Y-axis (open top & bottom, 4 walls)
+      function _tubeY(W, D, Ht) {
+        const grp = new THREE.Group();
+        const mt = _mats();
+        const t = Tw;
+        [D/2 - t/2, -D/2 + t/2].forEach(pz => {                     // front/back
+          const g2 = new THREE.BoxGeometry(W, Ht, t);
+          _mesh(grp, g2, mt.galv, [0, 0, pz]);
+          _edge(grp, g2, mt.edge, [0, 0, pz]);
+        });
+        [W/2 - t/2, -W/2 + t/2].forEach(px => {                     // left/right
+          const g2 = new THREE.BoxGeometry(t, Ht, D - 2*t);
+          _mesh(grp, g2, mt.galv, [px, 0, 0]);
+          _edge(grp, g2, mt.edge, [px, 0, 0]);
+        });
+        return grp;
+      }
+
+      // Closed connector box: front/back + top/bottom caps, open left/right
+      // (left & right sides are the air connections to the leg bodies)
+      function _connBox(W, D, H) {
+        const grp = new THREE.Group();
+        const mt = _mats();
+        const t = Tw;
+        // Front wall
+        _box(grp, W, H, t, mt.galv, mt.edge, [0, 0, D/2 - t/2]);
+        // Back wall
+        _box(grp, W, H, t, mt.galv, mt.edge, [0, 0, -(D/2 - t/2)]);
+        // Top cap  (closed sheet)
+        _box(grp, W, t, D - 2*t, mt.galv, mt.edge, [0,  H/2 - t/2, 0]);
+        // Bottom cap (closed sheet)
+        _box(grp, W, t, D - 2*t, mt.galv, mt.edge, [0, -H/2 + t/2, 0]);
+        return grp;
+      }
+
+      // Flat flange ring (4 dark bars protruding outward from W×D opening)
+      function _flangeRing(W, D, fl2) {
+        const grp = new THREE.Group();
+        const mt = _mats();
+        const ft = Tw * 1.4;
+        _mesh(grp, new THREE.BoxGeometry(W + 2*fl2, ft, fl2), mt.flange, [0,  0, D/2  + fl2/2]);
+        _mesh(grp, new THREE.BoxGeometry(W + 2*fl2, ft, fl2), mt.flange, [0,  0, -D/2 - fl2/2]);
+        _mesh(grp, new THREE.BoxGeometry(fl2, ft, D),         mt.flange, [ W/2 + fl2/2, 0, 0]);
+        _mesh(grp, new THREE.BoxGeometry(fl2, ft, D),         mt.flange, [-W/2 - fl2/2, 0, 0]);
+        return grp;
+      }
+
+      // Tapered collar: 4 trapezoidal panels using BufferGeometry quads
+      // Wide base at Y=0 (W_big), narrows to Y=Hc (W_small)
+      function _collar(W_big, W_small, D, Hc) {
+        const grp = new THREE.Group();
+        if (Hc <= 0) return grp;
+        const mt = _mats();
+
+        function _quad(corners, mat) {
+          const [a, b, c, d] = corners;
+          const pos = new Float32Array([
+            a.x, a.y, a.z,  b.x, b.y, b.z,  c.x, c.y, c.z,
+            a.x, a.y, a.z,  c.x, c.y, c.z,  d.x, d.y, d.z,
+          ]);
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+          geo.computeVertexNormals();
+          grp.add(new THREE.Mesh(geo, mat));
+          const ep = new Float32Array([
+            a.x,a.y,a.z, b.x,b.y,b.z,  b.x,b.y,b.z, c.x,c.y,c.z,
+            c.x,c.y,c.z, d.x,d.y,d.z,  d.x,d.y,d.z, a.x,a.y,a.z,
+          ]);
+          const eg = new THREE.BufferGeometry();
+          eg.setAttribute('position', new THREE.BufferAttribute(ep, 3));
+          grp.add(new THREE.LineSegments(eg, mt.edge));
+        }
+
+        const hw = W_big/2, hw2 = W_small/2, hd = D/2;
+        // Front (Z=+hd) — trapezoid
+        _quad([_v3(-hw,0,hd),  _v3(hw,0,hd),   _v3(hw2,Hc,hd),  _v3(-hw2,Hc,hd)], mt.galv);
+        // Back  (Z=-hd)
+        _quad([_v3(hw,0,-hd),  _v3(-hw,0,-hd),  _v3(-hw2,Hc,-hd), _v3(hw2,Hc,-hd)], mt.galv);
+        // Left side (X goes from -hw to -hw2)
+        _quad([_v3(-hw,0,-hd), _v3(-hw,0,hd),  _v3(-hw2,Hc,hd), _v3(-hw2,Hc,-hd)], mt.galv);
+        // Right side (X goes from hw to hw2)
+        _quad([_v3(hw,0,hd),   _v3(hw,0,-hd),  _v3(hw2,Hc,-hd), _v3(hw2,Hc,hd)], mt.galv);
+        return grp;
+      }
+
+      // ═════════════════════════════════════════════════════════════════════
+      // ASSEMBLY  — Z-SHAPE
+      //
+      //   X  ←  right leg (rX)  |  connector (0)  |  left leg (lX)  →
+      //   Y  all body sections span  0 → connH (= max(h2, h4))
+      //        right collar:  Y = h2  →  h2+h1  (inlet at top-right)
+      //        left  collar:  Y = 0   →  -h3    (outlet at bottom-left)
+      // ═════════════════════════════════════════════════════════════════════
+
+      const rX = g/2 + w3/2;           // right leg center X
+      const lX = -(g/2 + w4/2);        // left leg center X
+
+      // 1. Right leg body (W3 × H2), Y = 0 → h2
+      const rLeg = _tubeY(w3, d1, h2);
+      rLeg.position.set(rX, h2/2, 0);
+      pivot.add(rLeg);
+
+      // 2. Right collar (W3 → W1, height H1), starts at Y = h2, rises up
+      const rCollar = _collar(w3, w1, d1, h1);
+      rCollar.position.set(rX, h2, 0);
+      pivot.add(rCollar);
+
+      // 3. Right flange ring at Y = h2+h1 (inlet)
+      const rFlange = _flangeRing(w1, d1, fl);
+      rFlange.position.set(rX, h2 + h1, 0);
+      pivot.add(rFlange);
+
+      // 4. Middle connector (G × connH), CLOSED top & bottom
+      const conn = _connBox(g, d1, connH);
+      conn.position.set(0, connH/2, 0);
+      pivot.add(conn);
+
+      // 5. Left leg body (W4 × H4), Y = 0 → h4
+      const lLeg = _tubeY(w4, d1, h4);
+      lLeg.position.set(lX, h4/2, 0);
+      pivot.add(lLeg);
+
+      // 6. Left collar (W4 → W2, height H3), flipped DOWN from Y=0
+      const lCollar = _collar(w4, w2, d1, h3);
+      lCollar.scale.y = -1;            // flip: wide at Y=0, narrow at Y=-h3
+      lCollar.position.set(lX, 0, 0);
+      pivot.add(lCollar);
+
+      // 7. Left flange ring at Y = -h3 (outlet)
+      const lFlange = _flangeRing(w2, d1, fl);
+      lFlange.position.set(lX, -h3, 0);
+      pivot.add(lFlange);
+
+      // ── Center assembly vertically ────────────────────────────────────────
+      const topY   = h2 + h1;          // highest point (right inlet)
+      const botY   = -h3;              // lowest point  (left outlet)
+      const ctrY   = (topY + botY) / 2;
+      pivot.children.forEach(c => c.position.y -= ctrY);
+
+      // ── Dimension lines (raw Y then shifted) ─────────────────────────────
+      const dz  = d1/2 + 0.08;        // Z offset (in front)
+      const dxR = rX + w3/2 + 0.09;  // right side X offset
+      const dxL = lX - w4/2 - 0.09;  // left side X offset
+
+      const dims = [
+        // W1 — right inlet width
+        { p1: _v3(rX-w1/2, topY+0.06, dz), p2: _v3(rX+w1/2, topY+0.06, dz),   text: f.W1 ? `W1: ${f.W1}` : 'W1' },
+        // D1 — depth (along Z at top of right inlet)
+        { p1: _v3(dxR, topY, -d1/2),        p2: _v3(dxR, topY, d1/2),            text: f.D1 ? `D1: ${f.D1}` : 'D1' },
+        // H1 — right collar height
+        { p1: _v3(dxR, h2, dz),             p2: _v3(dxR, topY, dz),              text: f.H1 ? `H1: ${f.H1}` : 'H1' },
+        // H2 — right leg body height
+        { p1: _v3(dxR+0.09, 0, dz),         p2: _v3(dxR+0.09, h2, dz),           text: f.H2 ? `H2: ${f.H2}` : 'H2' },
+        // W3 — right leg body width (at bottom of right leg)
+        { p1: _v3(rX-w3/2, -0.07, dz),     p2: _v3(rX+w3/2, -0.07, dz),         text: f.W3 ? `W3: ${f.W3}` : 'W3' },
+        // G — connector width
+        { p1: _v3(-g/2, connH*0.5, dz),    p2: _v3( g/2, connH*0.5, dz),        text: f.G  ? `G: ${f.G}`   : 'G'  },
+        // W4 — left leg body width (at top of left leg)
+        { p1: _v3(lX-w4/2, h4+0.07, dz),   p2: _v3(lX+w4/2, h4+0.07, dz),      text: f.W4 ? `W4: ${f.W4}` : 'W4' },
+        // H4 — left leg body height
+        { p1: _v3(dxL-0.09, 0, dz),         p2: _v3(dxL-0.09, h4, dz),           text: f.H4 ? `H4: ${f.H4}` : 'H4' },
+        // H3 — left collar height
+        { p1: _v3(dxL, -h3, dz),            p2: _v3(dxL, 0, dz),                  text: f.H3 ? `H3: ${f.H3}` : 'H3' },
+        // W2 — left outlet width
+        { p1: _v3(lX-w2/2, -h3-0.07, dz),  p2: _v3(lX+w2/2, -h3-0.07, dz),     text: f.W2 ? `W2: ${f.W2}` : 'W2' },
+        // FL — flange width (at right inlet)
+        { p1: _v3(rX+w1/2, topY+fl+0.05, dz), p2: _v3(rX+w1/2+fl, topY+fl+0.05, dz), text: f.FL ? `FL: ${f.FL}` : 'FL' },
+      ];
+
+      // Apply vertical centering to all dim line points
+      dims.forEach(dl => { dl.p1.y -= ctrY; dl.p2.y -= ctrY; });
+      _3d.dimLines = dims;
+
+      _fitCam(w3 + g + w4 + fl*3, (topY - botY) * 0.85, d1 * 2.5);
+      break;
+    }
+
     case 'canvas_rect': {
       const W = (+f.A || 400) * S, H = (+f.B || 300) * S, L = (+f.L || 600) * S, T = Math.min(W, H) * 0.09;
       _hollowRect(pivot, L, W, H, T);
       [-L / 2 + 0.02, L / 2 - 0.02].forEach(x => { _box(pivot, 0.04, H + 0.01, W + 0.01, m.red, null, [x, 0, 0]); });
       _3d.dimLines = [
-        { p1: _v3(-L / 2, H / 2 + 0.09, 0), p2: _v3(L / 2, H / 2 + 0.09, 0), text: `${f.L} mm` },
-        { p1: _v3(-L / 2 - 0.12, -H / 2, 0), p2: _v3(-L / 2 - 0.12, H / 2, 0), text: `${f.B} mm` },
-        { p1: _v3(-L / 2 - 0.12, H / 2 + 0.06, -W / 2), p2: _v3(-L / 2 - 0.12, H / 2 + 0.06, W / 2), text: `${f.A} mm` },
+        { p1: _v3(-L / 2, H / 2 + 0.09, 0), p2: _v3(L / 2, H / 2 + 0.09, 0), text: f.L ? `${f.L} mm` : 'L' },
+        { p1: _v3(-L / 2 - 0.12, -H / 2, 0), p2: _v3(-L / 2 - 0.12, H / 2, 0), text: f.B ? `${f.B} mm` : 'B' },
+        { p1: _v3(-L / 2 - 0.12, H / 2 + 0.06, -W / 2), p2: _v3(-L / 2 - 0.12, H / 2 + 0.06, W / 2), text: f.A ? `${f.A} mm` : 'A' },
       ]; _fitCam(L, H, W); break;
     }
     case 'round_straight': {
       const R = (+f.D || 400) / 2 * S, L = (+f.L || 600) * S, T = R * 0.09;
       _hollowRound(pivot, L, R, T);
       _3d.dimLines = [
-        { p1: _v3(-L / 2, 0, 0), p2: _v3(L / 2, 0, 0), text: `${f.L} mm` },
-        { p1: _v3(0, R + 0.07, 0), p2: _v3(0, -R - 0.07, 0), text: `Ø${f.D} mm`, color: '#D72B2B' },
+        { p1: _v3(-L / 2, 0, 0), p2: _v3(L / 2, 0, 0), text: f.L ? `${f.L} mm` : 'L' },
+        { p1: _v3(0, R + 0.07, 0), p2: _v3(0, -R - 0.07, 0), text: f.D ? `Ø${f.D} mm` : 'D', color: '#D72B2B' },
       ]; _fitCam(L, R * 2, R * 2); break;
     }
     case 'canvas_round': {
@@ -365,8 +560,8 @@ function build3DDuct(key, f) {
       _hollowRound(pivot, L, R, T);
       [-L / 2, L / 2].forEach(x => { const g = new THREE.CylinderGeometry(R * 1.06, R * 1.06, 0.045, 32); const bm = new THREE.Mesh(g, m.red); bm.rotation.z = Math.PI / 2; bm.position.x = x; pivot.add(bm); });
       _3d.dimLines = [
-        { p1: _v3(-L / 2, 0, 0), p2: _v3(L / 2, 0, 0), text: `${f.L} mm` },
-        { p1: _v3(0, R + 0.08, 0), p2: _v3(0, -R - 0.08, 0), text: `Ø${f.D} mm`, color: '#D72B2B' },
+        { p1: _v3(-L / 2, 0, 0), p2: _v3(L / 2, 0, 0), text: f.L ? `${f.L} mm` : 'L' },
+        { p1: _v3(0, R + 0.08, 0), p2: _v3(0, -R - 0.08, 0), text: f.D ? `Ø${f.D} mm` : 'D', color: '#D72B2B' },
       ]; _fitCam(L, R * 2, R * 2); break;
     }
     case 'rect_elbow90': {
@@ -413,10 +608,10 @@ function build3DDuct(key, f) {
       arm2.rotation.y = -Math.PI / 2;
       arm2.position.set(Rc, 0, L / 2); pivot.add(arm2);
       _3d.dimLines = [
-        { p1: _v3(-L, H / 2 + 0.10, -Rc), p2: _v3(0, H / 2 + 0.10, -Rc), text: `${f.L} mm` },
-        { p1: _v3(-L / 2 - 0.12, -H / 2, -Rc), p2: _v3(-L / 2 - 0.12, H / 2, -Rc), text: `${f.B} mm` },
-        { p1: _v3(0, H / 2 + 0.12, -Ri), p2: _v3(0, H / 2 + 0.12, -Ro), text: `R ${f.R} mm`, color: '#D72B2B' },
-        { p1: _v3(0, H / 2 + 0.08, -Ro), p2: _v3(Ro, H / 2 + 0.08, -Ro), text: `${f.A} mm` },
+        { p1: _v3(-L, H / 2 + 0.10, -Rc), p2: _v3(0, H / 2 + 0.10, -Rc), text: f.L ? `${f.L} mm` : 'L' },
+        { p1: _v3(-L / 2 - 0.12, -H / 2, -Rc), p2: _v3(-L / 2 - 0.12, H / 2, -Rc), text: f.B ? `${f.B} mm` : 'B' },
+        { p1: _v3(0, H / 2 + 0.12, -Ri), p2: _v3(0, H / 2 + 0.12, -Ro), text: f.R ? `R ${f.R} mm` : 'R', color: '#D72B2B' },
+        { p1: _v3(0, H / 2 + 0.08, -Ro), p2: _v3(Ro, H / 2 + 0.08, -Ro), text: f.A ? `${f.A} mm` : 'A' },
       ];
       _fitCam(L + Ro, H, L + Ro); break;
     }
@@ -427,8 +622,8 @@ function build3DDuct(key, f) {
       const ang = Math.PI / 4;
       arm2.rotation.y = ang; arm2.position.set(L / 2 * Math.cos(ang) * 0.5, 0, L / 2 * Math.sin(ang) + A / 2); pivot.add(arm2);
       _3d.dimLines = [
-        { p1: _v3(-L, B / 2 + 0.1, 0), p2: _v3(0, B / 2 + 0.1, 0), text: `${f.L} mm` },
-        { p1: _v3(-L / 2 - 0.1, -B / 2, 0), p2: _v3(-L / 2 - 0.1, B / 2, 0), text: `${f.B} mm` },
+        { p1: _v3(-L, B / 2 + 0.1, 0), p2: _v3(0, B / 2 + 0.1, 0), text: f.L ? `${f.L} mm` : 'L' },
+        { p1: _v3(-L / 2 - 0.1, -B / 2, 0), p2: _v3(-L / 2 - 0.1, B / 2, 0), text: f.B ? `${f.B} mm` : 'B' },
       ]; _fitCam(L * 1.5, B, L); break;
     }
     case 'round_elbow90': {
@@ -448,9 +643,9 @@ function build3DDuct(key, f) {
       am2.position.set(bend, 0, L / 2);
       pivot.add(am2);
       _3d.dimLines = [
-        { p1: _v3(-L, -R - 0.05, -bend), p2: _v3(0, -R - 0.05, -bend), text: `${f.L} mm` },
-        { p1: _v3(0, -R, -bend - 0.1), p2: _v3(0, R, -bend - 0.1), text: `Ø${f.D} mm`, color: '#D72B2B' },
-        { p1: _v3(0, R + 0.1, -bend), p2: _v3(bend, R + 0.1, -bend), text: `R ${f.R} mm`, color: '#D72B2B' },
+        { p1: _v3(-L, -R - 0.05, -bend), p2: _v3(0, -R - 0.05, -bend), text: f.L ? `${f.L} mm` : 'L' },
+        { p1: _v3(0, -R, -bend - 0.1), p2: _v3(0, R, -bend - 0.1), text: f.D ? `Ø${f.D} mm` : 'D', color: '#D72B2B' },
+        { p1: _v3(0, R + 0.1, -bend), p2: _v3(bend, R + 0.1, -bend), text: f.R ? `R ${f.R} mm` : 'R', color: '#D72B2B' },
       ]; _fitCam(L + bend, R * 2 + bend, R * 2); break;
     }
     case 'duct_reducer': case 'reducer_duct': case 'collar_duct': case 'fan_conn': {
@@ -458,9 +653,9 @@ function build3DDuct(key, f) {
       _hollowReducer(pivot, W1, H1, W2, H2, L);
       _flangeRect(pivot, -L / 2, W1, H1, m); _flangeRect(pivot, L / 2, W2, H2, m);
       _3d.dimLines = [
-        { p1: _v3(-L / 2, H1 / 2 + 0.12, 0), p2: _v3(L / 2, H2 / 2 + 0.12, 0), text: `L ${f.L} mm` },
-        { p1: _v3(-L / 2 - 0.13, -H1 / 2, 0), p2: _v3(-L / 2 - 0.13, H1 / 2, 0), text: `${f.B} mm` },
-        { p1: _v3(L / 2 + 0.13, -H2 / 2, 0), p2: _v3(L / 2 + 0.13, H2 / 2, 0), text: `${f.D2 || f.D || ''} mm`, color: '#D72B2B' },
+        { p1: _v3(-L / 2, H1 / 2 + 0.12, 0), p2: _v3(L / 2, H2 / 2 + 0.12, 0), text: f.L ? `L ${f.L} mm` : 'L' },
+        { p1: _v3(-L / 2 - 0.13, -H1 / 2, 0), p2: _v3(-L / 2 - 0.13, H1 / 2, 0), text: f.B ? `${f.B} mm` : 'B' },
+        { p1: _v3(L / 2 + 0.13, -H2 / 2, 0), p2: _v3(L / 2 + 0.13, H2 / 2, 0), text: f.D2 ? `\${f.D2} mm` : (f.D ? `\${f.D} mm` : 'D2/D'), color: '#D72B2B' },
       ]; _fitCam(L, Math.max(H1, H2), Math.max(W1, W2)); break;
     }
     case 'reducer_duct_r': {
@@ -468,18 +663,18 @@ function build3DDuct(key, f) {
       _hollowReducer(pivot, W1, H1, W2, H2, L);
       pivot.children.forEach(c => { if (c.position && c.position.x > 0) c.position.y += RL; });
       _3d.dimLines = [
-        { p1: _v3(-L / 2, H1 / 2 + 0.12, 0), p2: _v3(L / 2, H2 / 2 + 0.12 + RL, 0), text: `L ${f.L} mm` },
-        { p1: _v3(-L / 2 - 0.13, -H1 / 2, 0), p2: _v3(-L / 2 - 0.13, H1 / 2, 0), text: `${f.B} mm` },
-        { p1: _v3(0, 0, W1 / 2 + 0.12), p2: _v3(0, RL, W1 / 2 + 0.12), text: `R ${f.R} mm`, color: '#D72B2B' },
+        { p1: _v3(-L / 2, H1 / 2 + 0.12, 0), p2: _v3(L / 2, H2 / 2 + 0.12 + RL, 0), text: f.L ? `L ${f.L} mm` : 'L' },
+        { p1: _v3(-L / 2 - 0.13, -H1 / 2, 0), p2: _v3(-L / 2 - 0.13, H1 / 2, 0), text: f.B ? `${f.B} mm` : 'B' },
+        { p1: _v3(0, 0, W1 / 2 + 0.12), p2: _v3(0, RL, W1 / 2 + 0.12), text: f.R ? `R ${f.R} mm` : 'R', color: '#D72B2B' },
       ]; _fitCam(L, Math.max(H1, H2) + RL, Math.max(W1, W2)); break;
     }
     case 'rect_to_round': {
       const W = (+f.A || 500) * S, H = (+f.B || 400) * S, R = (+f.D || 300) / 2 * S, L = (+f.L || 500) * S;
       _rectToRound(pivot, W, H, R, L);
       _3d.dimLines = [
-        { p1: _v3(-L / 2, H / 2 + 0.1, 0), p2: _v3(L / 2, R + 0.1, 0), text: `L ${f.L} mm` },
-        { p1: _v3(-L / 2 - 0.12, -H / 2, 0), p2: _v3(-L / 2 - 0.12, H / 2, 0), text: `${f.B} mm` },
-        { p1: _v3(L / 2 + 0.08, R + 0.05, 0), p2: _v3(L / 2 + 0.08, -R - 0.05, 0), text: `Ø${f.D} mm`, color: '#D72B2B' },
+        { p1: _v3(-L / 2, H / 2 + 0.1, 0), p2: _v3(L / 2, R + 0.1, 0), text: f.L ? `L ${f.L} mm` : 'L' },
+        { p1: _v3(-L / 2 - 0.12, -H / 2, 0), p2: _v3(-L / 2 - 0.12, H / 2, 0), text: f.B ? `${f.B} mm` : 'B' },
+        { p1: _v3(L / 2 + 0.08, R + 0.05, 0), p2: _v3(L / 2 + 0.08, -R - 0.05, 0), text: f.D ? `Ø${f.D} mm` : 'D', color: '#D72B2B' },
       ]; _fitCam(L, Math.max(H, R * 2), Math.max(W, R * 2)); break;
     }
     case 'offset_duct': {
@@ -491,9 +686,9 @@ function build3DDuct(key, f) {
       const g2 = new THREE.Group(); _hollowRect(g2, mLen, A, B, T); g2.rotation.z = ang; g2.position.set(0, RL / 2, 0); pivot.add(g2);
       const g3 = new THREE.Group(); _hollowRect(g3, seg, A, B, T); g3.position.set(seg, RL, 0); pivot.add(g3);
       _3d.dimLines = [
-        { p1: _v3(-seg * 1.5, B / 2 + 0.09, 0), p2: _v3(seg * 1.5, B / 2 + 0.09 + RL, 0), text: `${f.L} mm` },
-        { p1: _v3(-seg * 1.5 - 0.12, -B / 2, 0), p2: _v3(-seg * 1.5 - 0.12, B / 2, 0), text: `${f.B} mm` },
-        { p1: _v3(0, 0, A / 2 + 0.12), p2: _v3(0, RL, A / 2 + 0.12), text: `R ${f.R} mm`, color: '#D72B2B' },
+        { p1: _v3(-seg * 1.5, B / 2 + 0.09, 0), p2: _v3(seg * 1.5, B / 2 + 0.09 + RL, 0), text: f.L ? `${f.L} mm` : 'L' },
+        { p1: _v3(-seg * 1.5 - 0.12, -B / 2, 0), p2: _v3(-seg * 1.5 - 0.12, B / 2, 0), text: f.B ? `${f.B} mm` : 'B' },
+        { p1: _v3(0, 0, A / 2 + 0.12), p2: _v3(0, RL, A / 2 + 0.12), text: f.R ? `R ${f.R} mm` : 'R', color: '#D72B2B' },
       ]; _fitCam(L, B + RL, A); break;
     }
     case 'y_duct': {
@@ -506,12 +701,12 @@ function build3DDuct(key, f) {
       const y_top = B / 2;
       const x_c = Math.min(x_in + R + E, x_out - Math.min(A, B, E, FF) * 0.08);
       _3d.dimLines = [
-        { p1: _v3(x_in, y_top + 0.08, -A / 2), p2: _v3(x_out, y_top + 0.08, -A / 2), text: `L ${f.L} mm` },
-        { p1: _v3(x_in - 0.08, -B / 2, -A / 2), p2: _v3(x_in - 0.08, B / 2, -A / 2), text: `B ${f.B} mm` },
-        { p1: _v3(x_in - 0.08, y_top + 0.08, -A / 2), p2: _v3(x_in - 0.08, y_top + 0.08, A / 2), text: `A ${f.A} mm` },
-        { p1: _v3(x_in + R, y_top + 0.08, z_br_front), p2: _v3(x_c, y_top + 0.08, z_br_front), text: `E ${f.E} mm` },
-        { p1: _v3(x_c + 0.04, y_top, z_br_front + 0.05), p2: _v3(x_c + 0.04, y_top - FF, z_br_front + 0.05), text: `F ${f.F} mm` },
-        { p1: _v3(x_in, y_top + 0.05, z_front), p2: _v3(x_in + R, y_top + 0.05, z_br_front), text: `R${f.R}`, color: '#D72B2B' },
+        { p1: _v3(x_in, y_top + 0.08, -A / 2), p2: _v3(x_out, y_top + 0.08, -A / 2), text: f.L ? `L ${f.L} mm` : 'L' },
+        { p1: _v3(x_in - 0.08, -B / 2, -A / 2), p2: _v3(x_in - 0.08, B / 2, -A / 2), text: f.B ? `B ${f.B} mm` : 'B' },
+        { p1: _v3(x_in - 0.08, y_top + 0.08, -A / 2), p2: _v3(x_in - 0.08, y_top + 0.08, A / 2), text: f.A ? `A ${f.A} mm` : 'A' },
+        { p1: _v3(x_in + R, y_top + 0.08, z_br_front), p2: _v3(x_c, y_top + 0.08, z_br_front), text: f.E ? `E ${f.E} mm` : 'E' },
+        { p1: _v3(x_c + 0.04, y_top, z_br_front + 0.05), p2: _v3(x_c + 0.04, y_top - FF, z_br_front + 0.05), text: f.F ? `F ${f.F} mm` : 'F' },
+        { p1: _v3(x_in, y_top + 0.05, z_front), p2: _v3(x_in + R, y_top + 0.05, z_br_front), text: f.R ? `R${f.R}` : 'R', color: '#D72B2B' },
       ];
       _fitCam(L, B + FF, A + E); break;
     }
@@ -527,8 +722,8 @@ function build3DDuct(key, f) {
       const rb = new THREE.Group(); _hollowRect(rb, R2 * 1.4, E, FF, Math.min(E, FF) * 0.09);
       rb.rotation.y = -Math.PI / 4; rb.position.set(0, 0, R2 * 0.8 + A / 4); pivot.add(rb);
       _3d.dimLines = [
-        { p1: _v3(-A / 2, B / 2 + 0.1, 0), p2: _v3(A / 2, B / 2 + 0.1, 0), text: `${f.A} mm` },
-        { p1: _v3(-A / 2 - 0.12, -B / 2, 0), p2: _v3(-A / 2 - 0.12, B / 2, 0), text: `${f.B} mm` },
+        { p1: _v3(-A / 2, B / 2 + 0.1, 0), p2: _v3(A / 2, B / 2 + 0.1, 0), text: f.A ? `${f.A} mm` : 'A' },
+        { p1: _v3(-A / 2 - 0.12, -B / 2, 0), p2: _v3(-A / 2 - 0.12, B / 2, 0), text: f.B ? `${f.B} mm` : 'B' },
         { p1: _v3(0, B / 2 + 0.1, -(R1 + A / 4) + 0.1), p2: _v3(0, B / 2 + 0.1, R2 + A / 4 - 0.1), text: `R1+R2` },
       ]; _fitCam(A + R1 * 0.8, B, R1 + R2 + A); break;
     }
@@ -542,9 +737,9 @@ function build3DDuct(key, f) {
       const out = new THREE.Group(); _hollowRect(out, L * 0.4, E, FF, Math.min(E, FF) * 0.09);
       out.rotation.y = Math.PI / 2; out.position.set(L * 0.15, RL, L * 0.25); pivot.add(out);
       _3d.dimLines = [
-        { p1: _v3(-L / 2, B / 2 + 0.1, 0), p2: _v3(L * 0.15, B / 2 + 0.1, 0), text: `${f.L} mm` },
-        { p1: _v3(-L / 2 - 0.12, -B / 2, 0), p2: _v3(-L / 2 - 0.12, B / 2, 0), text: `${f.B} mm` },
-        { p1: _v3(L * 0.15 + 0.1, 0, 0), p2: _v3(L * 0.15 + 0.1, RL, 0), text: `R ${f.R} mm`, color: '#D72B2B' },
+        { p1: _v3(-L / 2, B / 2 + 0.1, 0), p2: _v3(L * 0.15, B / 2 + 0.1, 0), text: f.L ? `${f.L} mm` : 'L' },
+        { p1: _v3(-L / 2 - 0.12, -B / 2, 0), p2: _v3(-L / 2 - 0.12, B / 2, 0), text: f.B ? `${f.B} mm` : 'B' },
+        { p1: _v3(L * 0.15 + 0.1, 0, 0), p2: _v3(L * 0.15 + 0.1, RL, 0), text: f.R ? `R ${f.R} mm` : 'R', color: '#D72B2B' },
       ]; _fitCam(L, B + RL, A); break;
     }
     case 'plenum_box': {
@@ -559,10 +754,10 @@ function build3DDuct(key, f) {
       ].forEach(p => _box(pivot, p.w, p.h, p.d, m.galv, m.edge, [p.px, p.py, p.pz]));
       const cg = new THREE.Group(); _hollowRound(cg, H2, D / 2, D / 2 * 0.09); cg.position.set(A / 2 + H2 / 2, 0, 0); pivot.add(cg);
       _3d.dimLines = [
-        { p1: _v3(-A / 2, H / 2 + 0.12, 0), p2: _v3(A / 2, H / 2 + 0.12, 0), text: `${f.A} mm` },
-        { p1: _v3(-A / 2 - 0.14, -H / 2, 0), p2: _v3(-A / 2 - 0.14, H / 2, 0), text: `H ${f.H} mm` },
-        { p1: _v3(-A / 2 - 0.14, H / 2 + 0.1, -B / 2), p2: _v3(-A / 2 - 0.14, H / 2 + 0.1, B / 2), text: `${f.B} mm` },
-        { p1: _v3(A / 2 + H2 / 2 + 0.05, D / 2 + 0.06, 0), p2: _v3(A / 2 + H2 / 2 + 0.05, -D / 2 - 0.06, 0), text: `Ø${f.D} mm`, color: '#D72B2B' },
+        { p1: _v3(-A / 2, H / 2 + 0.12, 0), p2: _v3(A / 2, H / 2 + 0.12, 0), text: f.A ? `${f.A} mm` : 'A' },
+        { p1: _v3(-A / 2 - 0.14, -H / 2, 0), p2: _v3(-A / 2 - 0.14, H / 2, 0), text: f.H ? `H ${f.H} mm` : 'H' },
+        { p1: _v3(-A / 2 - 0.14, H / 2 + 0.1, -B / 2), p2: _v3(-A / 2 - 0.14, H / 2 + 0.1, B / 2), text: f.B ? `${f.B} mm` : 'B' },
+        { p1: _v3(A / 2 + H2 / 2 + 0.05, D / 2 + 0.06, 0), p2: _v3(A / 2 + H2 / 2 + 0.05, -D / 2 - 0.06, 0), text: f.D ? `Ø${f.D} mm` : 'D', color: '#D72B2B' },
       ]; _fitCam(A + H2, H, B); break;
     }
     case 'plenum_top': {
@@ -577,10 +772,10 @@ function build3DDuct(key, f) {
       ].forEach(p => _box(pivot, p.w, p.h, p.d, m.galv, m.edge, [p.px, p.py, p.pz]));
       const cg = new THREE.Group(); _hollowRound(cg, H2, D / 2, D / 2 * 0.09); cg.rotation.z = Math.PI / 2; cg.position.set(0, H / 2 + H2 / 2, 0); pivot.add(cg);
       _3d.dimLines = [
-        { p1: _v3(-A / 2, H / 2 + H2 + 0.12, 0), p2: _v3(A / 2, H / 2 + H2 + 0.12, 0), text: `${f.A} mm` },
-        { p1: _v3(-A / 2 - 0.14, -H / 2, 0), p2: _v3(-A / 2 - 0.14, H / 2, 0), text: `H ${f.H} mm` },
-        { p1: _v3(-A / 2 - 0.14, H / 2 + 0.1, -B / 2), p2: _v3(-A / 2 - 0.14, H / 2 + 0.1, B / 2), text: `${f.B} mm` },
-        { p1: _v3(A / 2 + 0.08, H / 2 + H2 / 2, 0), p2: _v3(-A / 2 - 0.08, H / 2 + H2 / 2, 0), text: `Ø${f.D} mm`, color: '#D72B2B' },
+        { p1: _v3(-A / 2, H / 2 + H2 + 0.12, 0), p2: _v3(A / 2, H / 2 + H2 + 0.12, 0), text: f.A ? `${f.A} mm` : 'A' },
+        { p1: _v3(-A / 2 - 0.14, -H / 2, 0), p2: _v3(-A / 2 - 0.14, H / 2, 0), text: f.H ? `H ${f.H} mm` : 'H' },
+        { p1: _v3(-A / 2 - 0.14, H / 2 + 0.1, -B / 2), p2: _v3(-A / 2 - 0.14, H / 2 + 0.1, B / 2), text: f.B ? `${f.B} mm` : 'B' },
+        { p1: _v3(A / 2 + 0.08, H / 2 + H2 / 2, 0), p2: _v3(-A / 2 - 0.08, H / 2 + H2 / 2, 0), text: f.D ? `Ø${f.D} mm` : 'D', color: '#D72B2B' },
       ]; _fitCam(A, H + H2, B); break;
     }
     case 'wire_mesh': {
@@ -589,8 +784,8 @@ function build3DDuct(key, f) {
       _mesh(pivot, g1, new THREE.MeshPhongMaterial({ color: 0xaabbcc, side: THREE.DoubleSide }));
       _mesh(pivot, new THREE.PlaneGeometry(A, B, 12, 8), new THREE.MeshBasicMaterial({ color: 0x4466aa, wireframe: true }));
       _3d.dimLines = [
-        { p1: _v3(-A / 2, B / 2 + 0.1, 0), p2: _v3(A / 2, B / 2 + 0.1, 0), text: `${f.A} mm` },
-        { p1: _v3(-A / 2 - 0.12, -B / 2, 0), p2: _v3(-A / 2 - 0.12, B / 2, 0), text: `${f.B} mm` },
+        { p1: _v3(-A / 2, B / 2 + 0.1, 0), p2: _v3(A / 2, B / 2 + 0.1, 0), text: f.A ? `${f.A} mm` : 'A' },
+        { p1: _v3(-A / 2 - 0.12, -B / 2, 0), p2: _v3(-A / 2 - 0.12, B / 2, 0), text: f.B ? `${f.B} mm` : 'B' },
       ]; _fitCam(A, B, 0.1); break;
     }
     case '4ways': {
@@ -602,7 +797,7 @@ function build3DDuct(key, f) {
         bg.rotation.y = ry; bg.position.set(dx * (A / 2 + bLen / 2), 0, dz * (A / 2 + bLen / 2)); pivot.add(bg);
       });
       _3d.dimLines = [
-        { p1: _v3(-A / 2 - 0.12, -B / 2, 0), p2: _v3(-A / 2 - 0.12, B / 2, 0), text: `${f.B} mm` },
+        { p1: _v3(-A / 2 - 0.12, -B / 2, 0), p2: _v3(-A / 2 - 0.12, B / 2, 0), text: f.B ? `${f.B} mm` : 'B' },
         { p1: _v3(A / 2 + bLen + 0.1, -D / 2, 0), p2: _v3(A / 2 + bLen + 0.1, D / 2, 0), text: `${f.D2 || ''} mm`, color: '#D72B2B' },
       ]; _fitCam(A + bLen * 2, B, A + bLen * 2); break;
     }

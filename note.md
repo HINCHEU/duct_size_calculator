@@ -20,3 +20,7 @@
 - Add thickness to all duct
 - Add End cap duct
 - PLENUM BOX has hollow buttom round hole to the side and to the side
+============================
+update on 02-07-26
+-A as width
+-b as height
