@@ -493,6 +493,11 @@ function build3DDuct(key, f) {
       lFlange.position.set(lX, -h3, 0);
       pivot.add(lFlange);
 
+      // 8. Caps for right leg bottom (W3) and left leg top (W4)
+      const mt = _mats();
+      _box(pivot, w3, Tw, d1, mt.galv, mt.edge, [rX, Tw/2, 0]);
+      _box(pivot, w4, Tw, d1, mt.galv, mt.edge, [lX, h4 - Tw/2, 0]);
+
       // ── Center assembly vertically ────────────────────────────────────────
       const topY   = h2 + h1;          // highest point (right inlet)
       const botY   = -h3;              // lowest point  (left outlet)
