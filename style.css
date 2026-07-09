@@ -623,6 +623,61 @@ select.field-input {
   left: 72%;
 }
 
+.fan-conn-label-a {
+  top: 13%;
+  left: 27%;
+}
+
+.fan-conn-label-b {
+  top: 35%;
+  left: 20%;
+}
+
+.fan-conn-label-c {
+  top: 65%;
+  left: 68%;
+}
+
+.fan-conn-label-d2 {
+  top: 36%;
+  left: 77%;
+}
+
+.fan-conn-label-l {
+  top: 75%;
+  left: 29%;
+}
+
+.fan-conn-label-f1 {
+  top: 2%;
+  left: 67%;
+}
+
+.fan-conn-label-s {
+  top: 7%;
+  left: 48%;
+}
+
+.fan-conn-label-l1 {
+  top: 71%;
+  left: 38%;
+}
+
+.fan-conn-label-l2 {
+  top: 63%;
+  left: 28%;
+}
+
+.fan-conn-label-fb {
+  top: 78%;
+  left: 48%;
+}
+
+.fan-conn-label-fi {
+  top: 38%;
+  left: 50%;
+}
+
 .butterfly-label-a {
   top: 88%;
   left: 50%;

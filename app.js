@@ -101,6 +101,22 @@ function renderFourWaysLabelOverlay(overlay, f) {
   ]);
 }
 
+function renderFanConnLabelOverlay(overlay, f) {
+  renderStaticLabelOverlay(overlay, f, [
+    { id: 'A', title: 'A', cls: 'fan-conn-label-a' },
+    { id: 'B', title: 'B', cls: 'fan-conn-label-b' },
+    { id: 'C', title: 'C', cls: 'fan-conn-label-c' },
+    { id: 'D2', title: 'D', cls: 'fan-conn-label-d2' },
+    { id: 'L', title: 'L', cls: 'fan-conn-label-l' },
+    { id: 'F1', title: 'F1', cls: 'fan-conn-label-f1' },
+    { id: 'S', title: 'S', cls: 'fan-conn-label-s' },
+    { id: 'L1', title: 'L1', cls: 'fan-conn-label-l1' },
+    { id: 'L2', title: 'L2', cls: 'fan-conn-label-l2' },
+    { id: 'Fb', title: 'Fb', cls: 'fan-conn-label-fb' },
+    { id: 'Fi', title: 'Fi', cls: 'fan-conn-label-fi' },
+  ]);
+}
+
 function renderButterflyRoundLabelOverlay(overlay, f) {
   // Positions tuned for the one-side-round static image (round outlet on the left)
   renderStaticLabelOverlay(overlay, f, [
@@ -136,6 +152,7 @@ function getStaticImageSrc(key) {
   if (key === 'r_type') return 'duct/R-TYPE%20DUCT.png';
   if (key === 'r_type_round_two') return 'duct/R-Type-duct-round-two-side.png';
   if (key === '4ways') return 'duct/4-way-duct.png';
+  if (key === 'fan_conn') return 'duct/FAN_CONN.png';
   if (key === 'butterfly_round') return 'duct/butterfly-duct-round-out-one-side.png';
   if (key === 'butterfly_round_two') return 'duct/Butterfly-duct-round-two-side.png';
   if (key === 'butterfly_rect') return 'duct/BUTTERFLY%20DUCT.png';
@@ -149,7 +166,7 @@ function updateStaticModalPreview(key, f) {
   const overlay = document.getElementById('duct-static-overlay-modal');
   if (!modal || !canvasWrap || !img || !overlay) return;
 
-  const isStaticType = key === 'y_duct' || key === 'r_type' || key === 'r_type_round_two' || key === '4ways' || key === 'butterfly_rect' || key === 'butterfly_round' || key === 'butterfly_round_two';
+  const isStaticType = key === 'y_duct' || key === 'r_type' || key === 'r_type_round_two' || key === '4ways' || key === 'fan_conn' || key === 'butterfly_rect' || key === 'butterfly_round' || key === 'butterfly_round_two';
   modal.classList.toggle('is-y-duct', key === 'y_duct');
   modal.classList.toggle('is-static-duct', isStaticType);
   canvasWrap.style.display = isStaticType ? 'none' : 'block';
@@ -161,11 +178,13 @@ function updateStaticModalPreview(key, f) {
     if (key === 'y_duct') img.alt = 'Y-Duct diagram';
     else if (key === 'r_type' || key === 'r_type_round_two') img.alt = 'R-Type Duct diagram';
     else if (key === '4ways') img.alt = '4-Ways Duct diagram';
+    else if (key === 'fan_conn') img.alt = 'Fan Connection Duct diagram';
     else img.alt = 'Butterfly Duct diagram';
     if (key === 'y_duct') renderYLabelOverlay(overlay, f);
     else if (key === 'r_type') renderRTypeLabelOverlay(overlay, f);
     else if (key === 'r_type_round_two') renderRTypeRoundTwoLabelOverlay(overlay, f);
     else if (key === '4ways') renderFourWaysLabelOverlay(overlay, f);
+    else if (key === 'fan_conn') renderFanConnLabelOverlay(overlay, f);
     else if (key === 'butterfly_round') renderButterflyRoundLabelOverlay(overlay, f);
     else if (key === 'butterfly_round_two') renderButterflyRoundTwoLabelOverlay(overlay, f);
     else renderButterflyLabelOverlay(overlay, f);
@@ -180,7 +199,7 @@ function updateStaticPreview(key, f) {
   const img = document.getElementById('duct-static-img');
   if (!wrap) return;
 
-  const isStaticType = key === 'y_duct' || key === 'r_type' || key === 'r_type_round_two' || key === '4ways' || key === 'butterfly_rect' || key === 'butterfly_round' || key === 'butterfly_round_two';
+  const isStaticType = key === 'y_duct' || key === 'r_type' || key === 'r_type_round_two' || key === '4ways' || key === 'fan_conn' || key === 'butterfly_rect' || key === 'butterfly_round' || key === 'butterfly_round_two';
   if (!isStaticType) {
     wrap.classList.remove('is-static-y-duct');
     if (overlay) overlay.innerHTML = '';
@@ -192,6 +211,8 @@ function updateStaticPreview(key, f) {
     img.src = getStaticImageSrc(key);
     if (key === 'y_duct') img.alt = 'Y-Duct diagram';
     else if (key === 'r_type' || key === 'r_type_round_two') img.alt = 'R-Type Duct diagram';
+    else if (key === '4ways') img.alt = '4-Ways Duct diagram';
+    else if (key === 'fan_conn') img.alt = 'Fan Connection Duct diagram';
     else img.alt = 'Butterfly Duct diagram';
   }
   if (!overlay) return;
@@ -200,6 +221,7 @@ function updateStaticPreview(key, f) {
   else if (key === 'r_type') renderRTypeLabelOverlay(overlay, f);
   else if (key === 'r_type_round_two') renderRTypeRoundTwoLabelOverlay(overlay, f);
   else if (key === '4ways') renderFourWaysLabelOverlay(overlay, f);
+  else if (key === 'fan_conn') renderFanConnLabelOverlay(overlay, f);
   else if (key === 'butterfly_round') renderButterflyRoundLabelOverlay(overlay, f);
   else if (key === 'butterfly_round_two') renderButterflyRoundTwoLabelOverlay(overlay, f);
   else renderButterflyLabelOverlay(overlay, f);
@@ -215,10 +237,19 @@ function refresh3DViewer() {
   const f = getVals();
   const typeEl = document.getElementById('duct-3d-modal-type');
   if (typeEl) typeEl.textContent = t ? t.label : '-';
-  if (key === 'y_duct' || key === 'r_type' || key === 'r_type_round_two' || key === '4ways' || key === 'butterfly_rect' || key === 'butterfly_round' || key === 'butterfly_round_two') {
+  if (key === 'y_duct' || key === 'r_type' || key === 'r_type_round_two' || key === '4ways' || key === 'fan_conn' || key === 'butterfly_rect' || key === 'butterfly_round' || key === 'butterfly_round_two') {
     updateStaticModalPreview(key, f);
     return;
   }
+  // 3D type — make sure the modal shows the 3D canvas, not the leftover 2D image
+  const modal = document.getElementById('duct-3d-modal');
+  const canvasWrap = document.getElementById('duct-3d-canvas-wrap-modal');
+  const img = document.getElementById('duct-static-img-modal');
+  const overlay = document.getElementById('duct-static-overlay-modal');
+  if (modal) { modal.classList.remove('is-y-duct'); modal.classList.remove('is-static-duct'); }
+  if (canvasWrap) canvasWrap.style.display = 'block';
+  if (img) img.style.display = 'none';
+  if (overlay) { overlay.style.display = 'none'; overlay.innerHTML = ''; }
   const container = getActive3DContainer();
   if (!container) return;
   init3DViewer(container);
@@ -240,7 +271,7 @@ function onTypeChange() {
 
   document.getElementById('duct-type-tag').textContent = t.tag;
 
-  if (key === 'y_duct' || key === 'r_type' || key === 'r_type_round_two' || key === '4ways' || key === 'butterfly_rect' || key === 'butterfly_round' || key === 'butterfly_round_two') dispose3DViewer();
+  if (key === 'y_duct' || key === 'r_type' || key === 'r_type_round_two' || key === '4ways' || key === 'fan_conn' || key === 'butterfly_rect' || key === 'butterfly_round' || key === 'butterfly_round_two') dispose3DViewer();
   else refresh3DViewer();
 
   const c = document.getElementById('dynamic-fields');
@@ -277,7 +308,7 @@ function updatePreview() {
     p.innerHTML = `<div class="preview-muted">Fill dimensions above to preview surface area</div>`;
   }
   updateStaticPreview(key, f);
-  if (key !== 'y_duct' && key !== 'r_type' && key !== 'r_type_round_two' && key !== '4ways' && key !== 'butterfly_rect' && key !== 'butterfly_round' && key !== 'butterfly_round_two') build3DDuct(key, displayVals);
+  if (key !== 'y_duct' && key !== 'r_type' && key !== 'r_type_round_two' && key !== '4ways' && key !== 'fan_conn' && key !== 'butterfly_rect' && key !== 'butterfly_round' && key !== 'butterfly_round_two') build3DDuct(key, displayVals);
 }
 
 function addItem() {

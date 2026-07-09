@@ -226,10 +226,33 @@ const DUCTS = {
   fan_conn: {
     label: 'Fan Connection',
     tag: 'Fan Conn',
-    fields: [{ id: 'A', label: 'Inlet Width A' }, { id: 'B', label: 'Inlet Height B' }, { id: 'C', label: 'Outlet Width C' }, { id: 'D2', label: 'Outlet Height D' }, { id: 'L', label: 'Length L' }],
-    calc: f => `Fan conn: ${f.A}×${f.B}→${f.C}×${f.D2}×L${f.L}`,
-    // Excel: Perimeter = 2*(A+B)/1000 (larger inlet end), EqLen = L/1000*1.2
-    area: f => { const a = +f.A, b = +f.B, l = +f.L; return 2 * (a + b) / 1000 * (l / 1000 * 1.2); },
+    fields: [
+      { id: 'A',  label: 'Inlet Width A'    },
+      { id: 'B',  label: 'Inlet Height B'   },
+      { id: 'C',  label: 'Outlet Width C'   },
+      { id: 'D2', label: 'Outlet Height D'  },
+      { id: 'L',  label: 'Total Length L'   },
+      { id: 'F1', label: 'Top Flange F1'    },
+      { id: 'S',  label: 'Top Step S'       },
+      { id: 'L1', label: 'Inlet Section L1' },
+      { id: 'L2', label: 'Body Section L2'  },
+      { id: 'Fb', label: 'Bottom Flange Fb' },
+      { id: 'Fi', label: 'Center Gap Fi'    },
+    ],
+    calc: f => `Fan conn: ${f.A}×${f.B} → ${f.C}×${f.D2} × L${f.L}`,
+    area: f => {
+      const a=+f.A, b=+f.B, c=+f.C, d=+f.D2, l=+f.L;
+      const f1=+f.F1, s=+f.S, l1=+f.L1, l2=+f.L2, fb=+f.Fb, fi=+f.Fi;
+      if (!a||!b||!c||!d||!l||!l2) return 0;
+      const slantW = Math.sqrt(l2*l2 + ((a-c)/2)**2);
+      const slantH = Math.sqrt(l2*l2 + s*s);
+      const topBot     = (a+c)/2 * slantW / 1e6 * 2;
+      const sides      = (b+d)/2 * slantH / 1e6 * 2;
+      const inletSect  = 2*(a+b)/1000 * (l1/1000);
+      const outFlange  = 2*(c+d)/1000 * (fb/1000);
+      const stripF1    = (c*2+d*2) * f1 / 1e6;
+      return topBot + sides + inletSect + outFlange + stripF1;
+    },
   },
   wire_mesh: {
     label: 'Wire Mesh',
@@ -248,7 +271,7 @@ const DUCTS = {
       { id: 'H1', label: 'Right Collar H1' },
       { id: 'H2', label: 'Right Leg Height H2' },
       { id: 'W3', label: 'Right Leg Width W3' },
-      { id: 'G',  label: 'Mid Connector Width G' },
+      { id: 'G', label: 'Mid Connector Width G' },
       { id: 'W4', label: 'Left Leg Width W4' },
       { id: 'H4', label: 'Left Leg Height H4' },
       { id: 'H3', label: 'Left Collar H3' },
@@ -259,7 +282,7 @@ const DUCTS = {
     area: f => {
       const w1 = +f.W1 || 900, d1 = +f.D1 || 500, w2 = +f.W2 || 900;
       const h1 = +f.H1 || 350, h2 = +f.H2 || 925, w3 = +f.W3 || 925;
-      const g  = +f.G  || 450, h3 = +f.H3 || 350, h4 = +f.H4 || 925;
+      const g = +f.G || 450, h3 = +f.H3 || 350, h4 = +f.H4 || 925;
       const w4 = +f.W4 || 925, fl = +f.FL || 50;
       const connH = Math.max(h2, h4); // connector height auto from legs
 
@@ -268,7 +291,7 @@ const DUCTS = {
       // Right collar trapezoid panels (front/back/2 sides)
       const rightCollarArea = (2 * d1 * h1 + 2 * ((w3 + w1) / 2) * h1) / 1e6;
       // Right flange ring
-      const rightFlangeArea = (2 * (w1 + 2*fl) * fl + 2 * d1 * fl) / 1e6;
+      const rightFlangeArea = (2 * (w1 + 2 * fl) * fl + 2 * d1 * fl) / 1e6;
 
       // Connector (G section): front+back+top+bottom panels
       const connArea = (2 * g * connH + 2 * g * d1) / 1e6;
@@ -278,16 +301,16 @@ const DUCTS = {
       // Left collar trapezoid panels
       const leftCollarArea = (2 * d1 * h3 + 2 * ((w4 + w2) / 2) * h3) / 1e6;
       // Left flange ring
-      const leftFlangeArea = (2 * (w2 + 2*fl) * fl + 2 * d1 * fl) / 1e6;
+      const leftFlangeArea = (2 * (w2 + 2 * fl) * fl + 2 * d1 * fl) / 1e6;
 
       // Deduct open inlet/outlet holes
       const rightHole = w1 * d1 / 1e6;
-      const leftHole  = w2 * d1 / 1e6;
+      const leftHole = w2 * d1 / 1e6;
 
       return rightLegArea + rightCollarArea + rightFlangeArea
-           + connArea
-           + leftLegArea + leftCollarArea + leftFlangeArea
-           - rightHole - leftHole;
+        + connArea
+        + leftLegArea + leftCollarArea + leftFlangeArea
+        - rightHole - leftHole;
     },
   },
 

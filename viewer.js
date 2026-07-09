@@ -74,7 +74,8 @@ function init3DViewer(container) {
     lctx,
     dimLines: [],
     _dead: false,
-    setBase(x, y, z) { bx = x; by = y; bz = z; }
+    setBase(x, y, z) { bx = x; by = y; bz = z; },
+    setRot(rx, ry) { rotX = rx; rotY = ry; }
   };
   _3d = state;
 
@@ -155,8 +156,8 @@ function _hollowRect(grp, L, W, H, T) {
   const m = _mats();
   T = Math.min(T, W / 2 * 0.9, H / 2 * 0.9);
   [
-    { w: L, h: T, d: W, py: H / 2 - T / 2, pz: 0 },  
-    { w: L, h: T, d: W, py: -H / 2 + T / 2, pz: 0 },  
+    { w: L, h: T, d: W, py: H / 2 - T / 2, pz: 0 },
+    { w: L, h: T, d: W, py: -H / 2 + T / 2, pz: 0 },
     { w: L, h: H - 2 * T, d: T, py: 0, pz: W / 2 - T / 2 },
     { w: L, h: H - 2 * T, d: T, py: 0, pz: -W / 2 + T / 2 },
   ].forEach(p => {
@@ -194,11 +195,11 @@ function _hollowReducer(grp, W1, H1, W2, H2, L) {
   const w1i = W1 - T * 2, h1i = H1 - T * 2, w2i = W2 - T * 2, h2i = H2 - T * 2;
   const faces = [
     {
-      vO: [-half, H1 / 2, W1 / 2, -half, H1 / 2, -W1 / 2, half, H2 / 2, -W2 / 2, half, H2 / 2, W2 / 2], 
+      vO: [-half, H1 / 2, W1 / 2, -half, H1 / 2, -W1 / 2, half, H2 / 2, -W2 / 2, half, H2 / 2, W2 / 2],
       vI: [-half, h1i / 2, w1i / 2, -half, h1i / 2, -w1i / 2, half, h2i / 2, -w2i / 2, half, h2i / 2, w2i / 2]
     },
     {
-      vO: [-half, -H1 / 2, -W1 / 2, -half, -H1 / 2, W1 / 2, half, -H2 / 2, W2 / 2, half, -H2 / 2, -W2 / 2], 
+      vO: [-half, -H1 / 2, -W1 / 2, -half, -H1 / 2, W1 / 2, half, -H2 / 2, W2 / 2, half, -H2 / 2, -W2 / 2],
       vI: [-half, -h1i / 2, -w1i / 2, -half, -h1i / 2, w1i / 2, half, -h2i / 2, w2i / 2, half, -h2i / 2, -w2i / 2]
     },
     {
@@ -239,7 +240,7 @@ function _rectToRound(grp, W, H, R, L) {
   const rs = new THREE.Shape(); rs.moveTo(-W / 2, -H / 2); rs.lineTo(W / 2, -H / 2); rs.lineTo(W / 2, H / 2); rs.lineTo(-W / 2, H / 2); rs.closePath();
   const rh = new THREE.Path(); const ri = 0.88; rh.moveTo(-W / 2 * ri, -H / 2 * ri); rh.lineTo(W / 2 * ri, -H / 2 * ri); rh.lineTo(W / 2 * ri, H / 2 * ri); rh.lineTo(-W / 2 * ri, H / 2 * ri); rh.closePath(); rs.holes.push(rh);
   const rcg = new THREE.ShapeGeometry(rs, 4); const rcm = new THREE.Mesh(rcg, m.flange); rcm.rotation.y = Math.PI / 2; rcm.position.x = -half; grp.add(rcm);
-  const cs = new THREE.Shape(); cs.absarc(0, 0, R, 0, Math.PI * 2, false); const ch = new THREE.Path(); ch.absarc(0, 0, R * 0.87, 0, Math.PI * 2, true); cs.holes.push(ch); 
+  const cs = new THREE.Shape(); cs.absarc(0, 0, R, 0, Math.PI * 2, false); const ch = new THREE.Path(); ch.absarc(0, 0, R * 0.87, 0, Math.PI * 2, true); cs.holes.push(ch);
   const ccg = new THREE.ShapeGeometry(cs, 32); const ccm = new THREE.Mesh(ccg, m.flange); ccm.rotation.y = Math.PI / 2; ccm.position.x = half; grp.add(ccm);
 }
 
@@ -348,12 +349,12 @@ function build3DDuct(key, f) {
       const h1 = (+f.H1 || 350) * S;   // right collar height (rise above body)
       const h2 = (+f.H2 || 925) * S;   // right leg body height
       const w3 = (+f.W3 || 925) * S;   // right leg body width
-      const g  = (+f.G  || 450) * S;   // horizontal connector width (user fills)
+      const g = (+f.G || 450) * S;   // horizontal connector width (user fills)
       const w4 = (+f.W4 || 925) * S;   // left leg body width
       const h4 = (+f.H4 || 925) * S;   // left leg body height
       const h3 = (+f.H3 || 350) * S;   // left collar height (drop below body)
       const w2 = (+f.W2 || 900) * S;   // left outlet inner width
-      const fl = (+f.FL ||  50) * S;   // flange protrusion
+      const fl = (+f.FL || 50) * S;   // flange protrusion
 
       const connH = Math.max(h2, h4);  // connector height derived from legs
       const Tw = Math.min(d1, w3) * 0.04; // wall thickness for rendering
@@ -365,13 +366,13 @@ function build3DDuct(key, f) {
         const grp = new THREE.Group();
         const mt = _mats();
         const t = Tw;
-        [D/2 - t/2, -D/2 + t/2].forEach(pz => {                     // front/back
+        [D / 2 - t / 2, -D / 2 + t / 2].forEach(pz => {                     // front/back
           const g2 = new THREE.BoxGeometry(W, Ht, t);
           _mesh(grp, g2, mt.galv, [0, 0, pz]);
           _edge(grp, g2, mt.edge, [0, 0, pz]);
         });
-        [W/2 - t/2, -W/2 + t/2].forEach(px => {                     // left/right
-          const g2 = new THREE.BoxGeometry(t, Ht, D - 2*t);
+        [W / 2 - t / 2, -W / 2 + t / 2].forEach(px => {                     // left/right
+          const g2 = new THREE.BoxGeometry(t, Ht, D - 2 * t);
           _mesh(grp, g2, mt.galv, [px, 0, 0]);
           _edge(grp, g2, mt.edge, [px, 0, 0]);
         });
@@ -385,13 +386,13 @@ function build3DDuct(key, f) {
         const mt = _mats();
         const t = Tw;
         // Front wall
-        _box(grp, W, H, t, mt.galv, mt.edge, [0, 0, D/2 - t/2]);
+        _box(grp, W, H, t, mt.galv, mt.edge, [0, 0, D / 2 - t / 2]);
         // Back wall
-        _box(grp, W, H, t, mt.galv, mt.edge, [0, 0, -(D/2 - t/2)]);
+        _box(grp, W, H, t, mt.galv, mt.edge, [0, 0, -(D / 2 - t / 2)]);
         // Top cap  (closed sheet)
-        _box(grp, W, t, D - 2*t, mt.galv, mt.edge, [0,  H/2 - t/2, 0]);
+        _box(grp, W, t, D - 2 * t, mt.galv, mt.edge, [0, H / 2 - t / 2, 0]);
         // Bottom cap (closed sheet)
-        _box(grp, W, t, D - 2*t, mt.galv, mt.edge, [0, -H/2 + t/2, 0]);
+        _box(grp, W, t, D - 2 * t, mt.galv, mt.edge, [0, -H / 2 + t / 2, 0]);
         return grp;
       }
 
@@ -400,10 +401,10 @@ function build3DDuct(key, f) {
         const grp = new THREE.Group();
         const mt = _mats();
         const ft = Tw * 1.4;
-        _mesh(grp, new THREE.BoxGeometry(W + 2*fl2, ft, fl2), mt.flange, [0,  0, D/2  + fl2/2]);
-        _mesh(grp, new THREE.BoxGeometry(W + 2*fl2, ft, fl2), mt.flange, [0,  0, -D/2 - fl2/2]);
-        _mesh(grp, new THREE.BoxGeometry(fl2, ft, D),         mt.flange, [ W/2 + fl2/2, 0, 0]);
-        _mesh(grp, new THREE.BoxGeometry(fl2, ft, D),         mt.flange, [-W/2 - fl2/2, 0, 0]);
+        _mesh(grp, new THREE.BoxGeometry(W + 2 * fl2, ft, fl2), mt.flange, [0, 0, D / 2 + fl2 / 2]);
+        _mesh(grp, new THREE.BoxGeometry(W + 2 * fl2, ft, fl2), mt.flange, [0, 0, -D / 2 - fl2 / 2]);
+        _mesh(grp, new THREE.BoxGeometry(fl2, ft, D), mt.flange, [W / 2 + fl2 / 2, 0, 0]);
+        _mesh(grp, new THREE.BoxGeometry(fl2, ft, D), mt.flange, [-W / 2 - fl2 / 2, 0, 0]);
         return grp;
       }
 
@@ -417,31 +418,31 @@ function build3DDuct(key, f) {
         function _quad(corners, mat) {
           const [a, b, c, d] = corners;
           const pos = new Float32Array([
-            a.x, a.y, a.z,  b.x, b.y, b.z,  c.x, c.y, c.z,
-            a.x, a.y, a.z,  c.x, c.y, c.z,  d.x, d.y, d.z,
+            a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z,
+            a.x, a.y, a.z, c.x, c.y, c.z, d.x, d.y, d.z,
           ]);
           const geo = new THREE.BufferGeometry();
           geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
           geo.computeVertexNormals();
           grp.add(new THREE.Mesh(geo, mat));
           const ep = new Float32Array([
-            a.x,a.y,a.z, b.x,b.y,b.z,  b.x,b.y,b.z, c.x,c.y,c.z,
-            c.x,c.y,c.z, d.x,d.y,d.z,  d.x,d.y,d.z, a.x,a.y,a.z,
+            a.x, a.y, a.z, b.x, b.y, b.z, b.x, b.y, b.z, c.x, c.y, c.z,
+            c.x, c.y, c.z, d.x, d.y, d.z, d.x, d.y, d.z, a.x, a.y, a.z,
           ]);
           const eg = new THREE.BufferGeometry();
           eg.setAttribute('position', new THREE.BufferAttribute(ep, 3));
           grp.add(new THREE.LineSegments(eg, mt.edge));
         }
 
-        const hw = W_big/2, hw2 = W_small/2, hd = D/2;
+        const hw = W_big / 2, hw2 = W_small / 2, hd = D / 2;
         // Front (Z=+hd) — trapezoid
-        _quad([_v3(-hw,0,hd),  _v3(hw,0,hd),   _v3(hw2,Hc,hd),  _v3(-hw2,Hc,hd)], mt.galv);
+        _quad([_v3(-hw, 0, hd), _v3(hw, 0, hd), _v3(hw2, Hc, hd), _v3(-hw2, Hc, hd)], mt.galv);
         // Back  (Z=-hd)
-        _quad([_v3(hw,0,-hd),  _v3(-hw,0,-hd),  _v3(-hw2,Hc,-hd), _v3(hw2,Hc,-hd)], mt.galv);
+        _quad([_v3(hw, 0, -hd), _v3(-hw, 0, -hd), _v3(-hw2, Hc, -hd), _v3(hw2, Hc, -hd)], mt.galv);
         // Left side (X goes from -hw to -hw2)
-        _quad([_v3(-hw,0,-hd), _v3(-hw,0,hd),  _v3(-hw2,Hc,hd), _v3(-hw2,Hc,-hd)], mt.galv);
+        _quad([_v3(-hw, 0, -hd), _v3(-hw, 0, hd), _v3(-hw2, Hc, hd), _v3(-hw2, Hc, -hd)], mt.galv);
         // Right side (X goes from hw to hw2)
-        _quad([_v3(hw,0,hd),   _v3(hw,0,-hd),  _v3(hw2,Hc,-hd), _v3(hw2,Hc,hd)], mt.galv);
+        _quad([_v3(hw, 0, hd), _v3(hw, 0, -hd), _v3(hw2, Hc, -hd), _v3(hw2, Hc, hd)], mt.galv);
         return grp;
       }
 
@@ -454,12 +455,12 @@ function build3DDuct(key, f) {
       //        left  collar:  Y = 0   →  -h3    (outlet at bottom-left)
       // ═════════════════════════════════════════════════════════════════════
 
-      const rX = g/2 + w3/2;           // right leg center X
-      const lX = -(g/2 + w4/2);        // left leg center X
+      const rX = g / 2 + w3 / 2;           // right leg center X
+      const lX = -(g / 2 + w4 / 2);        // left leg center X
 
       // 1. Right leg body (W3 × H2), Y = 0 → h2
       const rLeg = _tubeY(w3, d1, h2);
-      rLeg.position.set(rX, h2/2, 0);
+      rLeg.position.set(rX, h2 / 2, 0);
       pivot.add(rLeg);
 
       // 2. Right collar (W3 → W1, height H1), starts at Y = h2, rises up
@@ -474,12 +475,12 @@ function build3DDuct(key, f) {
 
       // 4. Middle connector (G × connH), CLOSED top & bottom
       const conn = _connBox(g, d1, connH);
-      conn.position.set(0, connH/2, 0);
+      conn.position.set(0, connH / 2, 0);
       pivot.add(conn);
 
       // 5. Left leg body (W4 × H4), Y = 0 → h4
       const lLeg = _tubeY(w4, d1, h4);
-      lLeg.position.set(lX, h4/2, 0);
+      lLeg.position.set(lX, h4 / 2, 0);
       pivot.add(lLeg);
 
       // 6. Left collar (W4 → W2, height H3), flipped DOWN from Y=0
@@ -495,50 +496,50 @@ function build3DDuct(key, f) {
 
       // 8. Caps for right leg bottom (W3) and left leg top (W4)
       const mt = _mats();
-      _box(pivot, w3, Tw, d1, mt.galv, mt.edge, [rX, Tw/2, 0]);
-      _box(pivot, w4, Tw, d1, mt.galv, mt.edge, [lX, h4 - Tw/2, 0]);
+      _box(pivot, w3, Tw, d1, mt.galv, mt.edge, [rX, Tw / 2, 0]);
+      _box(pivot, w4, Tw, d1, mt.galv, mt.edge, [lX, h4 - Tw / 2, 0]);
 
       // ── Center assembly vertically ────────────────────────────────────────
-      const topY   = h2 + h1;          // highest point (right inlet)
-      const botY   = -h3;              // lowest point  (left outlet)
-      const ctrY   = (topY + botY) / 2;
+      const topY = h2 + h1;          // highest point (right inlet)
+      const botY = -h3;              // lowest point  (left outlet)
+      const ctrY = (topY + botY) / 2;
       pivot.children.forEach(c => c.position.y -= ctrY);
 
       // ── Dimension lines (raw Y then shifted) ─────────────────────────────
-      const dz  = d1/2 + 0.08;        // Z offset (in front)
-      const dxR = rX + w3/2 + 0.09;  // right side X offset
-      const dxL = lX - w4/2 - 0.09;  // left side X offset
+      const dz = d1 / 2 + 0.08;        // Z offset (in front)
+      const dxR = rX + w3 / 2 + 0.09;  // right side X offset
+      const dxL = lX - w4 / 2 - 0.09;  // left side X offset
 
       const dims = [
         // W1 — right inlet width
-        { p1: _v3(rX-w1/2, topY+0.06, dz), p2: _v3(rX+w1/2, topY+0.06, dz),   text: f.W1 ? `W1: ${f.W1}` : 'W1' },
+        { p1: _v3(rX - w1 / 2, topY + 0.06, dz), p2: _v3(rX + w1 / 2, topY + 0.06, dz), text: f.W1 ? `W1: ${f.W1}` : 'W1' },
         // D1 — depth (along Z at top of right inlet)
-        { p1: _v3(dxR, topY, -d1/2),        p2: _v3(dxR, topY, d1/2),            text: f.D1 ? `D1: ${f.D1}` : 'D1' },
+        { p1: _v3(dxR, topY, -d1 / 2), p2: _v3(dxR, topY, d1 / 2), text: f.D1 ? `D1: ${f.D1}` : 'D1' },
         // H1 — right collar height
-        { p1: _v3(dxR, h2, dz),             p2: _v3(dxR, topY, dz),              text: f.H1 ? `H1: ${f.H1}` : 'H1' },
+        { p1: _v3(dxR, h2, dz), p2: _v3(dxR, topY, dz), text: f.H1 ? `H1: ${f.H1}` : 'H1' },
         // H2 — right leg body height
-        { p1: _v3(dxR+0.09, 0, dz),         p2: _v3(dxR+0.09, h2, dz),           text: f.H2 ? `H2: ${f.H2}` : 'H2' },
+        { p1: _v3(dxR + 0.09, 0, dz), p2: _v3(dxR + 0.09, h2, dz), text: f.H2 ? `H2: ${f.H2}` : 'H2' },
         // W3 — right leg body width (at bottom of right leg)
-        { p1: _v3(rX-w3/2, -0.07, dz),     p2: _v3(rX+w3/2, -0.07, dz),         text: f.W3 ? `W3: ${f.W3}` : 'W3' },
+        { p1: _v3(rX - w3 / 2, -0.07, dz), p2: _v3(rX + w3 / 2, -0.07, dz), text: f.W3 ? `W3: ${f.W3}` : 'W3' },
         // G — connector width
-        { p1: _v3(-g/2, connH*0.5, dz),    p2: _v3( g/2, connH*0.5, dz),        text: f.G  ? `G: ${f.G}`   : 'G'  },
+        { p1: _v3(-g / 2, connH * 0.5, dz), p2: _v3(g / 2, connH * 0.5, dz), text: f.G ? `G: ${f.G}` : 'G' },
         // W4 — left leg body width (at top of left leg)
-        { p1: _v3(lX-w4/2, h4+0.07, dz),   p2: _v3(lX+w4/2, h4+0.07, dz),      text: f.W4 ? `W4: ${f.W4}` : 'W4' },
+        { p1: _v3(lX - w4 / 2, h4 + 0.07, dz), p2: _v3(lX + w4 / 2, h4 + 0.07, dz), text: f.W4 ? `W4: ${f.W4}` : 'W4' },
         // H4 — left leg body height
-        { p1: _v3(dxL-0.09, 0, dz),         p2: _v3(dxL-0.09, h4, dz),           text: f.H4 ? `H4: ${f.H4}` : 'H4' },
+        { p1: _v3(dxL - 0.09, 0, dz), p2: _v3(dxL - 0.09, h4, dz), text: f.H4 ? `H4: ${f.H4}` : 'H4' },
         // H3 — left collar height
-        { p1: _v3(dxL, -h3, dz),            p2: _v3(dxL, 0, dz),                  text: f.H3 ? `H3: ${f.H3}` : 'H3' },
+        { p1: _v3(dxL, -h3, dz), p2: _v3(dxL, 0, dz), text: f.H3 ? `H3: ${f.H3}` : 'H3' },
         // W2 — left outlet width
-        { p1: _v3(lX-w2/2, -h3-0.07, dz),  p2: _v3(lX+w2/2, -h3-0.07, dz),     text: f.W2 ? `W2: ${f.W2}` : 'W2' },
+        { p1: _v3(lX - w2 / 2, -h3 - 0.07, dz), p2: _v3(lX + w2 / 2, -h3 - 0.07, dz), text: f.W2 ? `W2: ${f.W2}` : 'W2' },
         // FL — flange width (at right inlet)
-        { p1: _v3(rX+w1/2, topY+fl+0.05, dz), p2: _v3(rX+w1/2+fl, topY+fl+0.05, dz), text: f.FL ? `FL: ${f.FL}` : 'FL' },
+        { p1: _v3(rX + w1 / 2, topY + fl + 0.05, dz), p2: _v3(rX + w1 / 2 + fl, topY + fl + 0.05, dz), text: f.FL ? `FL: ${f.FL}` : 'FL' },
       ];
 
       // Apply vertical centering to all dim line points
       dims.forEach(dl => { dl.p1.y -= ctrY; dl.p2.y -= ctrY; });
       _3d.dimLines = dims;
 
-      _fitCam(w3 + g + w4 + fl*3, (topY - botY) * 0.85, d1 * 2.5);
+      _fitCam(w3 + g + w4 + fl * 3, (topY - botY) * 0.85, d1 * 2.5);
       break;
     }
 
@@ -653,15 +654,130 @@ function build3DDuct(key, f) {
         { p1: _v3(0, R + 0.1, -bend), p2: _v3(bend, R + 0.1, -bend), text: f.R ? `R ${f.R} mm` : 'R', color: '#D72B2B' },
       ]; _fitCam(L + bend, R * 2 + bend, R * 2); break;
     }
-    case 'duct_reducer': case 'reducer_duct': case 'collar_duct': case 'fan_conn': {
+    case 'duct_reducer': case 'reducer_duct': case 'collar_duct': {
       const W1 = (+f.A || 500) * S, H1 = (+f.B || 400) * S, W2 = (+f.C || 300) * S, H2 = (+(f.D2 || f.D || 250)) * S, L = (+f.L || 500) * S;
       _hollowReducer(pivot, W1, H1, W2, H2, L);
       _flangeRect(pivot, -L / 2, W1, H1, m); _flangeRect(pivot, L / 2, W2, H2, m);
       _3d.dimLines = [
         { p1: _v3(-L / 2, H1 / 2 + 0.12, 0), p2: _v3(L / 2, H2 / 2 + 0.12, 0), text: f.L ? `L ${f.L} mm` : 'L' },
         { p1: _v3(-L / 2 - 0.13, -H1 / 2, 0), p2: _v3(-L / 2 - 0.13, H1 / 2, 0), text: f.B ? `${f.B} mm` : 'B' },
-        { p1: _v3(L / 2 + 0.13, -H2 / 2, 0), p2: _v3(L / 2 + 0.13, H2 / 2, 0), text: f.D2 ? `\${f.D2} mm` : (f.D ? `\${f.D} mm` : 'D2/D'), color: '#D72B2B' },
+        { p1: _v3(L / 2 + 0.13, -H2 / 2, 0), p2: _v3(L / 2 + 0.13, H2 / 2, 0), text: (f.D2||f.D) ? `${f.D2||f.D} mm` : 'D', color: '#D72B2B' },
       ]; _fitCam(L, Math.max(H1, H2), Math.max(W1, W2)); break;
+    }
+    case 'fan_conn': {
+      // Fan Connection: AXB inlet -> CXD outlet x Total Length L
+      // 11 user dimensions: A, B, C, D, L, F1, S (top step), L1, L2, Fb, Fi
+      // Shape: straight inlet (L1) + tapered body (L2) + outlet flange section (Fb)
+      // The outlet center is at y=0; inlet top is (D/2 - S) above the outlet center bottom
+      const A  = (+f.A  || 300) * S, B  = (+f.B  || 200) * S;
+      const C  = (+f.C  || 240) * S, D  = (+(f.D2||f.D) || 340) * S;
+      const TL = (+f.L  || 350) * S;  // Total Length
+      const F1 = (+f.F1 ||  20) * S;  // Top flange
+      const SV = (+f.S  ||  75) * S;  // Top step: how much outlet top is above inlet top
+      const L1 = (+f.L1 || 150) * S;  // Inlet straight section
+      const L2 = (+f.L2 || 140) * S;  // Tapered body section
+      const Fb = (+f.Fb ||  60) * S;  // Outlet flange section
+      const Fi = (+f.Fi ||  20) * S;  // Center gap / inner seam
+      const Tw = Math.min(A,B,C,D) * 0.04;
+
+      // Z axis: -TL/2 (inlet) to +TL/2 (outlet)
+      const zi  = -TL/2;
+      const ztS = zi + L1;          // taper starts here
+      const ztE = ztS + L2;         // taper ends, outlet straight section starts
+      const zo  = ztE + Fb;         // outlet face (= TL/2)
+
+      // Y positions: outlet centered at y=0
+      // inlet top = outlet top - SV = D/2 - SV
+      const yo_top = D/2,  yo_bot = -D/2;
+      const yi_top = D/2 - SV,  yi_bot = D/2 - SV - B;
+      const hA = A/2, hC = C/2;
+
+      // Helper: quad polygon (2 triangles + edge)
+      function addQ(p1, p2, p3, p4, mat) {
+        const pos = new Float32Array([
+          p1[0],p1[1],p1[2], p2[0],p2[1],p2[2], p3[0],p3[1],p3[2],
+          p1[0],p1[1],p1[2], p3[0],p3[1],p3[2], p4[0],p4[1],p4[2],
+        ]);
+        const g2 = new THREE.BufferGeometry();
+        g2.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        g2.computeVertexNormals();
+        pivot.add(new THREE.Mesh(g2, mat));
+        const ep = new Float32Array([
+          p1[0],p1[1],p1[2], p2[0],p2[1],p2[2],
+          p2[0],p2[1],p2[2], p3[0],p3[1],p3[2],
+          p3[0],p3[1],p3[2], p4[0],p4[1],p4[2],
+          p4[0],p4[1],p4[2], p1[0],p1[1],p1[2],
+        ]);
+        const eg = new THREE.BufferGeometry();
+        eg.setAttribute('position', new THREE.BufferAttribute(ep, 3));
+        pivot.add(new THREE.LineSegments(eg, m.edge));
+      }
+
+      // SECTION 1: Straight inlet duct (A x B, length L1)
+      addQ([-hA,yi_top,zi], [hA,yi_top,zi], [hA,yi_top,ztS], [-hA,yi_top,ztS], m.galv);  // top
+      addQ([-hA,yi_bot,zi], [-hA,yi_bot,ztS], [hA,yi_bot,ztS], [hA,yi_bot,zi], m.galv);  // bottom
+      addQ([-hA,yi_bot,zi], [-hA,yi_top,zi], [-hA,yi_top,ztS], [-hA,yi_bot,ztS], m.galv);// left
+      addQ([hA,yi_bot,zi], [hA,yi_bot,ztS], [hA,yi_top,ztS], [hA,yi_top,zi], m.galv);    // right
+
+      // SECTION 2: Tapered body (A x B -> C x D, length L2)
+      addQ([-hA,yi_top,ztS], [hA,yi_top,ztS], [hC,yo_top,ztE], [-hC,yo_top,ztE], m.galv);  // top
+      addQ([-hA,yi_bot,ztS], [-hC,yo_bot,ztE], [hC,yo_bot,ztE], [hA,yi_bot,ztS], m.galv);  // bottom
+      addQ([-hA,yi_bot,ztS], [-hA,yi_top,ztS], [-hC,yo_top,ztE], [-hC,yo_bot,ztE], m.galv);// left
+      addQ([hA,yi_bot,ztS], [hC,yo_bot,ztE], [hC,yo_top,ztE], [hA,yi_top,ztS], m.galv);    // right
+
+      // SECTION 3: Outlet flange section (C x D, length Fb)
+      addQ([-hC,yo_top,ztE], [hC,yo_top,ztE], [hC,yo_top,zo], [-hC,yo_top,zo], m.galv);  // top
+      addQ([-hC,yo_bot,ztE], [-hC,yo_bot,zo], [hC,yo_bot,zo], [hC,yo_bot,ztE], m.galv);  // bottom
+      addQ([-hC,yo_bot,ztE], [-hC,yo_top,ztE], [-hC,yo_top,zo], [-hC,yo_bot,zo], m.galv);// left
+      addQ([hC,yo_bot,ztE], [hC,yo_bot,zo], [hC,yo_top,zo], [hC,yo_top,ztE], m.galv);    // right
+
+      // Face openings (dark panels)
+      _box(pivot, A, B, Tw*0.5, m.inner, m.edge, [0, (yi_top+yi_bot)/2, zi - Tw*0.25]);
+      _box(pivot, C, D, Tw*0.5, m.inner, m.edge, [0, 0, zo + Tw*0.25]);
+
+      // Top flange F1 (visible lip at outlet top edge)
+      _box(pivot, C + F1*2, F1, Fb*0.25, m.flange, m.edge, [0, yo_top + F1/2, zo - Fb*0.12]);
+      // Side flanges
+      _box(pivot, F1, D + F1*2, Fb*0.25, m.flange, m.edge, [ hC + F1/2, 0, zo - Fb*0.12]);
+      _box(pivot, F1, D + F1*2, Fb*0.25, m.flange, m.edge, [-hC - F1/2, 0, zo - Fb*0.12]);
+      // Bottom flange
+      _box(pivot, C + F1*2, F1, Fb*0.25, m.flange, m.edge, [0, yo_bot - F1/2, zo - Fb*0.12]);
+
+      // Center gap Fi (seam line on outlet face)
+      _box(pivot, Fi, D*0.85, Tw*0.3, m.flange, m.edge, [0, 0, zo + Tw*0.15]);
+
+      // Dimension lines
+      const dxO = Math.max(hA, hC) + 0.16;
+      const dyO = yo_top + F1 + 0.10;
+
+      _3d.dimLines = [
+        // A - inlet width
+        { p1: _v3(-hA, yi_top+0.08, zi),   p2: _v3(hA, yi_top+0.08, zi),   text: f.A  ? `A:${f.A}`       : 'A'  },
+        // B - inlet height
+        { p1: _v3(-dxO, yi_bot, zi),        p2: _v3(-dxO, yi_top, zi),       text: f.B  ? `B:${f.B}`       : 'B'  },
+        // C - outlet width
+        { p1: _v3(-hC, yo_top+F1+0.07, zo), p2: _v3(hC, yo_top+F1+0.07, zo), text: f.C  ? `C:${f.C}`       : 'C'  },
+        // D - outlet height
+        { p1: _v3(dxO, yo_bot, zo),          p2: _v3(dxO, yo_top, zo),         text: (f.D2||f.D) ? `D:${f.D2||f.D}` : 'D', color:'#D72B2B' },
+        // L - total length
+        { p1: _v3(0, dyO+0.05, zi),          p2: _v3(0, dyO+0.05, zo),         text: f.L  ? `L:${f.L}`       : 'L',  color:'#1a7a20'  },
+        // F1 - top flange
+        { p1: _v3(-hC*0.4, yo_top, zo),     p2: _v3(-hC*0.4, yo_top+F1, zo), text: f.F1 ? `F1:${f.F1}`     : 'F1' },
+        // S - top step offset
+        { p1: _v3(dxO+0.08, yi_top, ztS),   p2: _v3(dxO+0.08, yo_top, ztS),  text: f.S  ? `S:${f.S}`       : 'S',  color:'#8B4513'  },
+        // L1 - inlet section length
+        { p1: _v3(0, yi_bot-0.12, zi),      p2: _v3(0, yi_bot-0.12, ztS),    text: f.L1 ? `L1:${f.L1}`     : 'L1' },
+        // L2 - body/taper section length
+        { p1: _v3(hC*0.5, yo_bot-0.12, ztS), p2: _v3(hC*0.5, yo_bot-0.12, ztE), text: f.L2 ? `L2:${f.L2}`  : 'L2' },
+        // Fb - outlet flange length
+        { p1: _v3(-hC*0.5, yo_bot-0.12, ztE), p2: _v3(-hC*0.5, yo_bot-0.12, zo), text: f.Fb ? `Fb:${f.Fb}` : 'Fb' },
+        // Fi - center gap (at outlet face)
+        { p1: _v3(-Fi/2, yo_top*0.3, zo+0.06), p2: _v3(Fi/2, yo_top*0.3, zo+0.06), text: f.Fi ? `Fi:${f.Fi}` : 'Fi' },
+      ];
+
+      _3d.setRot(0.45, 0.72);
+      _3d.setBase(Math.max(A,C)*2.6, D*2.4, TL*2.8);
+      break;
     }
     case 'reducer_duct_r': {
       const W1 = (+f.A || 500) * S, H1 = (+f.B || 400) * S, W2 = (+f.C || 300) * S, H2 = (+(f.D2 || 250)) * S, L = (+f.L || 500) * S, RL = (+f.R || 100) * S;
