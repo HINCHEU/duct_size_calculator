@@ -166,14 +166,14 @@ function _hollowRect(grp, L, W, H, T) {
   });
 }
 
-function _flangeRect(grp, x, W, H, m) {
+function _flangeRect(grp, x, W, H, m, yOffset = 0) {
   const ext = 0.04, t = 0.025;
   [[W + ext * 2, t, 0, H / 2 + ext / 2, 0],
   [W + ext * 2, t, 0, -H / 2 - ext / 2, 0],
   [t, H + ext * 2, 0, 0, W / 2 + ext / 2],
   [t, H + ext * 2, 0, 0, -W / 2 - ext / 2],
   ].forEach(([fw, fh, , py, pz]) => {
-    const g = new THREE.BoxGeometry(t, fh, fw); const bm = new THREE.Mesh(g, m.flange); bm.position.set(x, py, pz); grp.add(bm);
+    const g = new THREE.BoxGeometry(t, fh, fw); const bm = new THREE.Mesh(g, m.flange); bm.position.set(x, py + yOffset, pz); grp.add(bm);
   });
 }
 
@@ -218,30 +218,89 @@ function _hollowReducer(grp, W1, H1, W2, H2, L) {
   });
   [{ x: -half, W: W1, H: H1, Wi: w1i, Hi: h1i }, { x: half, W: W2, H: H2, Wi: w2i, Hi: h2i }].forEach(({ x, W, H, Wi, Hi }) => {
     const cv = new Float32Array([W / 2, H / 2, 0, Wi / 2, Hi / 2, 0, Wi / 2, -Hi / 2, 0, W / 2, -H / 2, 0, -W / 2, H / 2, 0, -Wi / 2, Hi / 2, 0, -Wi / 2, -Hi / 2, 0, -W / 2, -H / 2, 0]);
-    const ci = [0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7];
+    const ci = [
+      0, 4, 5, 0, 5, 1,
+      3, 0, 1, 3, 1, 2,
+      7, 3, 2, 7, 2, 6,
+      4, 7, 6, 4, 6, 5
+    ];
     const cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.BufferAttribute(cv, 3)); cg.setIndex(ci); cg.computeVertexNormals();
     const cm = new THREE.Mesh(cg, m.flange); cm.rotation.y = Math.PI / 2; cm.position.x = x; grp.add(cm);
   });
 }
 
+function _hollowOffset(grp, W1, H1, W2, H2, offsetR, L) {
+  const m = _mats(); const half = L / 2;
+  const T = Math.max(Math.min(W1, H1, W2, H2) * 0.08, 0.018);
+  const w1i = W1 - T * 2, h1i = H1 - T * 2, w2i = W2 - T * 2, h2i = H2 - T * 2;
+  const faces = [
+    {
+      vO: [-half, H1 / 2, W1 / 2, -half, H1 / 2, -W1 / 2, half, H2 / 2 + offsetR, -W2 / 2, half, H2 / 2 + offsetR, W2 / 2],
+      vI: [-half, h1i / 2, w1i / 2, -half, h1i / 2, -w1i / 2, half, h2i / 2 + offsetR, -w2i / 2, half, h2i / 2 + offsetR, w2i / 2]
+    },
+    {
+      vO: [-half, -H1 / 2, -W1 / 2, -half, -H1 / 2, W1 / 2, half, -H2 / 2 + offsetR, W2 / 2, half, -H2 / 2 + offsetR, -W2 / 2],
+      vI: [-half, -h1i / 2, -w1i / 2, -half, -h1i / 2, w1i / 2, half, -h2i / 2 + offsetR, w2i / 2, half, -h2i / 2 + offsetR, -w2i / 2]
+    },
+    {
+      vO: [-half, -H1 / 2, W1 / 2, -half, H1 / 2, W1 / 2, half, H2 / 2 + offsetR, W2 / 2, half, -H2 / 2 + offsetR, W2 / 2],
+      vI: [-half, -h1i / 2, w1i / 2, -half, h1i / 2, w1i / 2, half, h2i / 2 + offsetR, w2i / 2, half, -h2i / 2 + offsetR, w2i / 2]
+    },
+    {
+      vO: [-half, H1 / 2, -W1 / 2, -half, -H1 / 2, -W1 / 2, half, -H2 / 2 + offsetR, -W2 / 2, half, H2 / 2 + offsetR, -W2 / 2],
+      vI: [-half, h1i / 2, -w1i / 2, -half, -h1i / 2, -w1i / 2, half, -h2i / 2 + offsetR, -w2i / 2, half, h2i / 2 + offsetR, -w2i / 2]
+    },
+  ];
+  faces.forEach(({ vO, vI }) => {
+    const go = new THREE.BufferGeometry(); go.setAttribute('position', new THREE.BufferAttribute(new Float32Array(vO), 3)); go.setIndex([0, 1, 2, 0, 2, 3]); go.computeVertexNormals(); _mesh(grp, go, m.galv); _edge(grp, go, m.edge);
+    const gi = new THREE.BufferGeometry(); gi.setAttribute('position', new THREE.BufferAttribute(new Float32Array(vI), 3)); gi.setIndex([0, 2, 1, 0, 3, 2]); gi.computeVertexNormals(); _mesh(grp, gi, m.inner);
+  });
+  [{ x: -half, Y: 0, W: W1, H: H1, wi: w1i, hi: h1i }, { x: half, Y: offsetR, W: W2, H: H2, wi: w2i, hi: h2i }].forEach(({ x, Y, W, H, wi, hi }) => {
+    const cv = new Float32Array([W / 2, H / 2, 0, wi / 2, hi / 2, 0, wi / 2, -hi / 2, 0, W / 2, -H / 2, 0, -W / 2, H / 2, 0, -wi / 2, hi / 2, 0, -wi / 2, -hi / 2, 0, -W / 2, -H / 2, 0]);
+    const ci = [0, 4, 5, 0, 5, 1, 3, 0, 1, 3, 1, 2, 7, 3, 2, 7, 2, 6, 4, 7, 6, 4, 6, 5];
+    const cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.BufferAttribute(cv, 3)); cg.setIndex(ci); cg.computeVertexNormals();
+    const cm = new THREE.Mesh(cg, m.flange); cm.rotation.y = Math.PI / 2; cm.position.x = x; cm.position.y = Y; grp.add(cm);
+  });
+}
+
 function _rectToRound(grp, W, H, R, L) {
-  const m = _mats(); const segs = 24, half = L / 2;
+  const m = _mats(); const segs = 32, half = L / 2;
+  const straightL = L / 2;
+
+  const straightGrp = new THREE.Group();
+  const T = Math.max(Math.min(W, H, R * 2) * 0.08, 0.014);
+  _hollowRect(straightGrp, straightL, W, H, T);
+  straightGrp.position.x = -L / 4;
+  grp.add(straightGrp);
+
+  const w_in = W - 2 * T, h_in = H - 2 * T, r_in = Math.max(R - T, R * 0.84);
+  const vertsO = [], vertsI = [];
+
   for (let i = 0; i < segs; i++) {
     const t0 = i / segs * Math.PI * 2, t1 = (i + 1) / segs * Math.PI * 2;
-    const blend = t => {
+    const blend = (t, bw, bh) => {
       const cx = Math.cos(t), cy = Math.sin(t);
-      const rx = W / 2 * Math.sign(cx) || 0.001, ry = H / 2 * Math.sign(cy) || 0.001;
-      return [W / 2 * cx, H / 2 * cy];
+      if (Math.abs(cx) < 1e-6) return [0, bh / 2 * Math.sign(cy)];
+      if (Math.abs(cy) < 1e-6) return [bw / 2 * Math.sign(cx), 0];
+      const tt = Math.min(Math.abs((bw / 2) / cx), Math.abs((bh / 2) / cy));
+      return [cx * tt, cy * tt];
     };
-    const [x0, y0] = blend(t0), [x1, y1] = blend(t1);
+    const [x0, y0] = blend(t0, W, H), [x1, y1] = blend(t1, W, H);
     const cx0 = R * Math.cos(t0), cy0 = R * Math.sin(t0), cx1 = R * Math.cos(t1), cy1 = R * Math.sin(t1);
-    const verts = new Float32Array([-half, y0, x0, -half, y1, x1, half, cy1, cx1, half, cy0, cx0]);
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(verts, 3)); g.setIndex([0, 1, 2, 0, 2, 3]); g.computeVertexNormals(); _mesh(grp, g, m.galv);
+    vertsO.push(0, y0, x0, half, cy1, cx1, 0, y1, x1, 0, y0, x0, half, cy0, cx0, half, cy1, cx1);
+
+    const [xi0, yi0] = blend(t0, w_in, h_in), [xi1, yi1] = blend(t1, w_in, h_in);
+    const cxi0 = r_in * Math.cos(t0), cyi0 = r_in * Math.sin(t0), cxi1 = r_in * Math.cos(t1), cyi1 = r_in * Math.sin(t1);
+    vertsI.push(0, yi0, xi0, 0, yi1, xi1, half, cyi1, cxi1, 0, yi0, xi0, half, cyi1, cxi1, half, cyi0, cxi0);
   }
-  const rs = new THREE.Shape(); rs.moveTo(-W / 2, -H / 2); rs.lineTo(W / 2, -H / 2); rs.lineTo(W / 2, H / 2); rs.lineTo(-W / 2, H / 2); rs.closePath();
-  const rh = new THREE.Path(); const ri = 0.88; rh.moveTo(-W / 2 * ri, -H / 2 * ri); rh.lineTo(W / 2 * ri, -H / 2 * ri); rh.lineTo(W / 2 * ri, H / 2 * ri); rh.lineTo(-W / 2 * ri, H / 2 * ri); rh.closePath(); rs.holes.push(rh);
-  const rcg = new THREE.ShapeGeometry(rs, 4); const rcm = new THREE.Mesh(rcg, m.flange); rcm.rotation.y = Math.PI / 2; rcm.position.x = -half; grp.add(rcm);
-  const cs = new THREE.Shape(); cs.absarc(0, 0, R, 0, Math.PI * 2, false); const ch = new THREE.Path(); ch.absarc(0, 0, R * 0.87, 0, Math.PI * 2, true); cs.holes.push(ch);
+
+  const gO = new THREE.BufferGeometry(); gO.setAttribute('position', new THREE.BufferAttribute(new Float32Array(vertsO), 3)); gO.computeVertexNormals(); _mesh(grp, gO, m.galv);
+  const gI = new THREE.BufferGeometry(); gI.setAttribute('position', new THREE.BufferAttribute(new Float32Array(vertsI), 3)); gI.computeVertexNormals(); _mesh(grp, gI, m.inner);
+
+  _flangeRect(grp, -half, W, H, m);
+
+  const cs = new THREE.Shape(); cs.absarc(0, 0, R, 0, Math.PI * 2, false);
+  const ch = new THREE.Path(); ch.absarc(0, 0, r_in, 0, Math.PI * 2, true); cs.holes.push(ch);
   const ccg = new THREE.ShapeGeometry(cs, 32); const ccm = new THREE.Mesh(ccg, m.flange); ccm.rotation.y = Math.PI / 2; ccm.position.x = half; grp.add(ccm);
 }
 
@@ -597,14 +656,14 @@ function build3DDuct(key, f) {
         const verts = new Float32Array(N * 6);
         for (let i = 0; i < N; i++) {
           const [px, pz] = pts[i];
-          verts[i*6+0]=px; verts[i*6+1]=y0; verts[i*6+2]=pz;
-          verts[i*6+3]=px; verts[i*6+4]=y1; verts[i*6+5]=pz;
+          verts[i * 6 + 0] = px; verts[i * 6 + 1] = y0; verts[i * 6 + 2] = pz;
+          verts[i * 6 + 3] = px; verts[i * 6 + 4] = y1; verts[i * 6 + 5] = pz;
         }
         const idx = [];
-        for (let i = 0; i < N-1; i++) {
+        for (let i = 0; i < N - 1; i++) {
           const b = i * 2;
-          if (flip) idx.push(b,b+1,b+2, b+1,b+3,b+2);
-          else      idx.push(b,b+2,b+1, b+1,b+2,b+3);
+          if (flip) idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
+          else idx.push(b, b + 2, b + 1, b + 1, b + 2, b + 3);
         }
         const g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.BufferAttribute(verts, 3));
@@ -618,14 +677,14 @@ function build3DDuct(key, f) {
         const outer = makePath(Ro), inner = makePath(Ri), N = outer.length;
         const verts = new Float32Array(N * 6);
         for (let i = 0; i < N; i++) {
-          verts[i*6+0]=outer[i][0]; verts[i*6+1]=y; verts[i*6+2]=outer[i][1];
-          verts[i*6+3]=inner[i][0]; verts[i*6+4]=y; verts[i*6+5]=inner[i][1];
+          verts[i * 6 + 0] = outer[i][0]; verts[i * 6 + 1] = y; verts[i * 6 + 2] = outer[i][1];
+          verts[i * 6 + 3] = inner[i][0]; verts[i * 6 + 4] = y; verts[i * 6 + 5] = inner[i][1];
         }
         const idx = [];
-        for (let i = 0; i < N-1; i++) {
+        for (let i = 0; i < N - 1; i++) {
           const b = i * 2;
-          if (flip) idx.push(b,b+2,b+1, b+1,b+2,b+3);
-          else      idx.push(b,b+1,b+3, b,b+3,b+2);
+          if (flip) idx.push(b, b + 2, b + 1, b + 1, b + 2, b + 3);
+          else idx.push(b, b + 1, b + 3, b, b + 3, b + 2);
         }
         const g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.BufferAttribute(verts, 3));
@@ -635,45 +694,133 @@ function build3DDuct(key, f) {
       }
 
       // 4 seamless continuous sheet-metal panels
-      sideWall(Ro, -H/2, H/2, m.galv, false);   // outer curved wall
-      sideWall(Ri, -H/2, H/2, m.inner, true);   // inner curved wall (dark)
-      capPanel( H/2, false);                      // top cap
-      capPanel(-H/2, true);                       // bottom cap
+      sideWall(Ro, -H / 2, H / 2, m.galv, false);   // outer curved wall
+      sideWall(Ri, -H / 2, H / 2, m.inner, true);   // inner curved wall (dark)
+      capPanel(H / 2, false);                      // top cap
+      capPanel(-H / 2, true);                       // bottom cap
 
       // Hollow open ends — thin wall-thickness ring frames (no solid caps)
       // Inlet end at x=-L, z=-Rc (opening perpendicular to X axis)
-      _box(pivot, TW, TW, W, m.galv, m.edge, [-L,  H/2 - TW/2, -Rc]);       // top bar
-      _box(pivot, TW, TW, W, m.galv, m.edge, [-L, -H/2 + TW/2, -Rc]);       // bottom bar
-      _box(pivot, TW, H-TW*2, TW, m.galv, m.edge, [-L, 0, -Ri - TW/2]);     // inner side
-      _box(pivot, TW, H-TW*2, TW, m.galv, m.edge, [-L, 0, -Ro + TW/2]);     // outer side
+      _box(pivot, TW, TW, W, m.galv, m.edge, [-L, H / 2 - TW / 2, -Rc]);       // top bar
+      _box(pivot, TW, TW, W, m.galv, m.edge, [-L, -H / 2 + TW / 2, -Rc]);       // bottom bar
+      _box(pivot, TW, H - TW * 2, TW, m.galv, m.edge, [-L, 0, -Ri - TW / 2]);     // inner side
+      _box(pivot, TW, H - TW * 2, TW, m.galv, m.edge, [-L, 0, -Ro + TW / 2]);     // outer side
       // Outlet end at x=Rc, z=L (opening perpendicular to Z axis)
-      _box(pivot, W, TW, TW, m.galv, m.edge, [Rc,  H/2 - TW/2, L]);         // top bar
-      _box(pivot, W, TW, TW, m.galv, m.edge, [Rc, -H/2 + TW/2, L]);         // bottom bar
-      _box(pivot, TW, H-TW*2, TW, m.galv, m.edge, [Ri + TW/2, 0, L]);       // inner side
-      _box(pivot, TW, H-TW*2, TW, m.galv, m.edge, [Ro - TW/2, 0, L]);       // outer side
+      _box(pivot, W, TW, TW, m.galv, m.edge, [Rc, H / 2 - TW / 2, L]);         // top bar
+      _box(pivot, W, TW, TW, m.galv, m.edge, [Rc, -H / 2 + TW / 2, L]);         // bottom bar
+      _box(pivot, TW, H - TW * 2, TW, m.galv, m.edge, [Ri + TW / 2, 0, L]);       // inner side
+      _box(pivot, TW, H - TW * 2, TW, m.galv, m.edge, [Ro - TW / 2, 0, L]);       // outer side
 
       // Center pivot
       const ox = (Ro - L) / 2, oz = -(Ro - L) / 2;
       pivot.children.forEach(c => { c.position.x -= ox; c.position.z -= oz; });
 
       _3d.dimLines = [
-        { p1: _v3(-ox - 0.12, -H/2, -Rc - oz), p2: _v3(-ox - 0.12, H/2, -Rc - oz), text: f.B ? `${f.B} mm` : 'B' },
-        { p1: _v3(-ox, H/2+0.12, -Ri - oz),    p2: _v3(-ox, H/2+0.12, -Ro - oz),   text: f.A ? `A ${f.A}` : 'A' },
-        { p1: _v3(-ox, H/2+0.09, -oz),         p2: _v3(-ox, H/2+0.09, -Ri - oz),   text: f.R ? `R ${f.R}` : 'R', color: '#D72B2B' },
+        { p1: _v3(-ox - 0.12, -H / 2, -Rc - oz), p2: _v3(-ox - 0.12, H / 2, -Rc - oz), text: f.B ? `${f.B} mm` : 'B' },
+        { p1: _v3(-ox, H / 2 + 0.12, -Ri - oz), p2: _v3(-ox, H / 2 + 0.12, -Ro - oz), text: f.A ? `A ${f.A}` : 'A' },
+        { p1: _v3(-ox, H / 2 + 0.09, -oz), p2: _v3(-ox, H / 2 + 0.09, -Ri - oz), text: f.R ? `R ${f.R}` : 'R', color: '#D72B2B' },
       ];
       _3d.setRot(0.42, 0.55);
       _fitCam(L + Ro, H, L + Ro); break;
     }
     case 'rect_elbow45': {
-      const A = (+f.A || 300) * S, B = (+f.B || 250) * S, RL = (+f.R || 150) * S, L = (+f.L || 300) * S, T = Math.min(A, B) * 0.09;
-      const arm1 = new THREE.Group(); _hollowRect(arm1, L, A, B, T); arm1.position.x = -L / 2; pivot.add(arm1);
-      const arm2 = new THREE.Group(); _hollowRect(arm2, L, A, B, T);
+      const W = (+f.A || 300) * S, H = (+f.B || 250) * S, RL = (+f.R || 150) * S;
+      const L = W * 0.7;                          // fixed stub arm for visual only
+      const TW = Math.min(W, H) * 0.07;
+      const SEGS = 24, AS = 8;
+      const Ri = RL, Ro = RL + W, Rc = RL + W / 2;
       const ang = Math.PI / 4;
-      arm2.rotation.y = ang; arm2.position.set(L / 2 * Math.cos(ang) * 0.5, 0, L / 2 * Math.sin(ang) + A / 2); pivot.add(arm2);
+
+      function makePath(r) {
+        const pts = [];
+        for (let i = AS; i > 0; i--) pts.push([-L * i / AS, -r]);
+        for (let i = 0; i <= SEGS; i++) {
+          const a = i / SEGS * ang;
+          pts.push([r * Math.sin(a), -r * Math.cos(a)]);
+        }
+        const endX = r * Math.sin(ang), endZ = -r * Math.cos(ang);
+        const dirX = Math.cos(ang), dirZ = Math.sin(ang);
+        for (let i = 1; i <= AS; i++) {
+          pts.push([endX + dirX * L * i / AS, endZ + dirZ * L * i / AS]);
+        }
+        return pts;
+      }
+
+      function sideWall(r, y0, y1, mat, flip) {
+        const pts = makePath(r), N = pts.length;
+        const verts = new Float32Array(N * 6);
+        for (let i = 0; i < N; i++) {
+          const [px, pz] = pts[i];
+          verts[i * 6 + 0] = px; verts[i * 6 + 1] = y0; verts[i * 6 + 2] = pz;
+          verts[i * 6 + 3] = px; verts[i * 6 + 4] = y1; verts[i * 6 + 5] = pz;
+        }
+        const idx = [];
+        for (let i = 0; i < N - 1; i++) {
+          const a = i * 2, b = i * 2 + 1, c = i * 2 + 2, d = i * 2 + 3;
+          if (flip) idx.push(a, b, c, c, b, d);
+          else idx.push(a, c, b, b, c, d);
+        }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+        g.setIndex(idx); g.computeVertexNormals();
+        _mesh(pivot, g, mat);
+        pivot.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 30), m.edge));
+      }
+
+      function capPanel(y, flip) {
+        const pI = makePath(Ri), pO = makePath(Ro), N = pI.length;
+        const verts = new Float32Array(N * 6);
+        for (let i = 0; i < N; i++) {
+          verts[i * 6 + 0] = pI[i][0]; verts[i * 6 + 1] = y; verts[i * 6 + 2] = pI[i][1];
+          verts[i * 6 + 3] = pO[i][0]; verts[i * 6 + 4] = y; verts[i * 6 + 5] = pO[i][1];
+        }
+        const idx = [];
+        for (let i = 0; i < N - 1; i++) {
+          const a = i * 2, b = i * 2 + 1, c = i * 2 + 2, d = i * 2 + 3;
+          if (flip) idx.push(a, b, c, c, b, d);
+          else idx.push(a, c, b, b, c, d);
+        }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+        g.setIndex(idx); g.computeVertexNormals();
+        _mesh(pivot, g, m.galv);
+        pivot.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 30), m.edge));
+      }
+
+      sideWall(Ro, -H / 2, H / 2, m.galv, false);
+      sideWall(Ri, -H / 2, H / 2, m.inner, true);
+      capPanel(H / 2, false);
+      capPanel(-H / 2, true);
+
+      // Hollow open ends — top/bottom/sides for thickness
+      // Inlet at x=-L, z=-Rc
+      _box(pivot, TW, TW, W, m.galv, m.edge, [-L, H / 2 - TW / 2, -Rc]);
+      _box(pivot, TW, TW, W, m.galv, m.edge, [-L, -H / 2 + TW / 2, -Rc]);
+      _box(pivot, TW, H - TW * 2, TW, m.galv, m.edge, [-L, 0, -Ri - TW / 2]);
+      _box(pivot, TW, H - TW * 2, TW, m.galv, m.edge, [-L, 0, -Ro + TW / 2]);
+
+      // Outlet at the 45 deg end
+      const endCX = Rc * Math.sin(ang) + L * Math.cos(ang);
+      const endCZ = -Rc * Math.cos(ang) + L * Math.sin(ang);
+      const outGrp = new THREE.Group();
+      _box(outGrp, W, TW, TW, m.galv, m.edge, [0, H / 2 - TW / 2, 0]);
+      _box(outGrp, W, TW, TW, m.galv, m.edge, [0, -H / 2 + TW / 2, 0]);
+      _box(outGrp, TW, H - TW * 2, TW, m.galv, m.edge, [-W / 2 + TW / 2, 0, 0]);
+      _box(outGrp, TW, H - TW * 2, TW, m.galv, m.edge, [W / 2 - TW / 2, 0, 0]);
+      outGrp.rotation.y = Math.PI / 2 - ang;
+      outGrp.position.set(endCX, 0, endCZ);
+      pivot.add(outGrp);
+
+      const ox = (Ro - L) / 2, oz = -(Ro - L) / 2;
+      pivot.children.forEach(c => { c.position.x -= ox; c.position.z -= oz; });
+
       _3d.dimLines = [
-        { p1: _v3(-L, B / 2 + 0.1, 0), p2: _v3(0, B / 2 + 0.1, 0), text: f.L ? `${f.L} mm` : 'L' },
-        { p1: _v3(-L / 2 - 0.1, -B / 2, 0), p2: _v3(-L / 2 - 0.1, B / 2, 0), text: f.B ? `${f.B} mm` : 'B' },
-      ]; _fitCam(L * 1.5, B, L); break;
+        { p1: _v3(-ox - 0.12, -H / 2, -Rc - oz), p2: _v3(-ox - 0.12, H / 2, -Rc - oz), text: f.B ? `${f.B} mm` : 'B' },
+        { p1: _v3(-ox, H / 2 + 0.12, -Ri - oz), p2: _v3(-ox, H / 2 + 0.12, -Ro - oz), text: f.A ? `A ${f.A}` : 'A' },
+        { p1: _v3(-ox, H / 2 + 0.09, -oz), p2: _v3(-ox, H / 2 + 0.09, -Ri - oz), text: f.R ? `R ${f.R}` : 'R', color: '#D72B2B' },
+      ];
+      _3d.setRot(0.42, 0.55);
+      _fitCam(L + Ro, H, L + Ro); break;
     }
     case 'round_elbow90': {
       // D=pipe diameter, R=inner radius
@@ -697,7 +844,38 @@ function build3DDuct(key, f) {
 
       _3d.dimLines = [
         { p1: _v3(0, -R - 0.06, -Rc - 0.08), p2: _v3(0, R + 0.06, -Rc - 0.08), text: f.D ? `Ø${f.D} mm` : 'D', color: '#D72B2B' },
-        { p1: _v3(0, R + 0.1, -Rc),  p2: _v3(Ri, R + 0.1, -Rc), text: f.R ? `R ${f.R} mm` : 'R', color: '#D72B2B' },
+        { p1: _v3(0, R + 0.1, -Rc), p2: _v3(Ri, R + 0.1, -Rc), text: f.R ? `R ${f.R} mm` : 'R', color: '#D72B2B' },
+      ];
+      _3d.setRot(0.40, 0.60);
+      _fitCam(Rc * 1.5, R * 2 + Rc, R * 2); break;
+    }
+    case 'round_elbow45': {
+      // D=pipe diameter, R=inner radius
+      const R = (+f.D || 250) / 2 * S;
+      const Ri = (+f.R || 300) * S;
+      const Rc = Ri + R;               // Centerline radius
+      const TW = R * 0.08;             // pipe wall thickness for end rings
+      const ang = Math.PI / 4;
+
+      // 45° torus arc (the bend)
+      const tg = new THREE.TorusGeometry(Rc, R, 32, 64, ang);
+      tg.rotateZ(-Math.PI / 2); tg.rotateX(Math.PI / 2);
+      _mesh(pivot, tg, m.shinyGalv || m.galv);
+
+      // Open end rings
+      const ringGeo1 = new THREE.TorusGeometry(R - TW / 2, TW / 2, 16, 48);
+      ringGeo1.rotateY(Math.PI / 2);
+      const ring1 = new THREE.Mesh(ringGeo1, m.flange); ring1.position.set(0, 0, -Rc); pivot.add(ring1);
+
+      const ringGeo2 = new THREE.TorusGeometry(R - TW / 2, TW / 2, 16, 48);
+      const ring2 = new THREE.Mesh(ringGeo2, m.flange);
+      ring2.rotation.y = Math.PI / 2 - ang;
+      ring2.position.set(Rc * Math.sin(ang), 0, -Rc * Math.cos(ang));
+      pivot.add(ring2);
+
+      _3d.dimLines = [
+        { p1: _v3(0, -R - 0.06, -Rc - 0.08), p2: _v3(0, R + 0.06, -Rc - 0.08), text: f.D ? `Ø${f.D} mm` : 'D', color: '#D72B2B' },
+        { p1: _v3(0, R + 0.1, -Rc), p2: _v3(Ri, R + 0.1, -Rc), text: f.R ? `R ${f.R} mm` : 'R', color: '#D72B2B' },
       ];
       _3d.setRot(0.40, 0.60);
       _fitCam(Rc * 1.5, R * 2 + Rc, R * 2); break;
@@ -708,53 +886,245 @@ function build3DDuct(key, f) {
       _flangeRect(pivot, -L / 2, W1, H1, m); _flangeRect(pivot, L / 2, W2, H2, m);
       _3d.dimLines = [
         { p1: _v3(-L / 2, H1 / 2 + 0.12, 0), p2: _v3(L / 2, H2 / 2 + 0.12, 0), text: f.L ? `L ${f.L} mm` : 'L' },
-        { p1: _v3(-L / 2 - 0.13, -H1 / 2, 0), p2: _v3(-L / 2 - 0.13, H1 / 2, 0), text: f.B ? `${f.B} mm` : 'B' },
-        { p1: _v3(L / 2 + 0.13, -H2 / 2, 0), p2: _v3(L / 2 + 0.13, H2 / 2, 0), text: (f.D2||f.D) ? `${f.D2||f.D} mm` : 'D', color: '#D72B2B' },
+        { p1: _v3(-L / 2 - 0.13, -H1 / 2, 0), p2: _v3(-L / 2 - 0.13, H1 / 2, 0), text: f.B ? `B ${f.B}` : 'B' },
+        { p1: _v3(L / 2 + 0.13, -H2 / 2, 0), p2: _v3(L / 2 + 0.13, H2 / 2, 0), text: (f.D2 || f.D) ? `D ${(f.D2 || f.D)}` : 'D', color: '#D72B2B' },
+        { p1: _v3(-L / 2, -H1 / 2 - 0.12, -W1 / 2), p2: _v3(-L / 2, -H1 / 2 - 0.12, W1 / 2), text: f.A ? `A ${f.A}` : 'A' },
+        { p1: _v3(L / 2, -H2 / 2 - 0.12, -W2 / 2), p2: _v3(L / 2, -H2 / 2 - 0.12, W2 / 2), text: f.C ? `C ${f.C}` : 'C' },
       ]; _fitCam(L, Math.max(H1, H2), Math.max(W1, W2)); break;
+    }
+    case 'offset_duct': {
+      const W1 = (+f.A || 450) * S, H1 = (+f.B || 300) * S;
+      const W2 = (+f.C || 450) * S, H2 = (+(f.D2 || f.D || 300)) * S;
+      const R = (+f.R || 285) * S, L = (+f.L || 560) * S;
+      _hollowOffset(pivot, W1, H1, W2, H2, R, L);
+      _flangeRect(pivot, -L / 2, W1, H1, m); _flangeRect(pivot, L / 2, W2, H2, m, R);
+      _3d.dimLines = [
+        { p1: _v3(-L / 2, H1 / 2 + 0.12, 0), p2: _v3(L / 2, H2 / 2 + R + 0.12, 0), text: f.L ? `L ${f.L} mm` : 'L' },
+        { p1: _v3(-L / 2 - 0.13, -H1 / 2, 0), p2: _v3(-L / 2 - 0.13, H1 / 2, 0), text: f.B ? `B ${f.B} mm` : 'B' },
+        { p1: _v3(L / 2 + 0.13, -H2 / 2 + R, 0), p2: _v3(L / 2 + 0.13, H2 / 2 + R, 0), text: (f.D2 || f.D) ? `D ${(f.D2 || f.D)} mm` : 'D', color: '#D72B2B' },
+        { p1: _v3(L / 2 + 0.13, -H2 / 2, 0), p2: _v3(L / 2 + 0.13, -H2 / 2 + R, 0), text: f.R ? `R ${f.R} mm` : 'R', color: '#D72B2B' },
+        { p1: _v3(-L / 2, -H1 / 2 - 0.12, -W1 / 2), p2: _v3(-L / 2, -H1 / 2 - 0.12, W1 / 2), text: f.A ? `A ${f.A} mm` : 'A' },
+        { p1: _v3(L / 2, -H2 / 2 + R - 0.12, -W2 / 2), p2: _v3(L / 2, -H2 / 2 + R - 0.12, W2 / 2), text: f.C ? `C ${f.C} mm` : 'C' }
+      ];
+      _3d.setRot(0.40, 0.60);
+      _fitCam(L, Math.max(H1, H2) + Math.abs(R), Math.max(W1, W2)); break;
+    }
+    case 'offset_duct_straight': {
+      const W = (+f.A || 350) * S, H = (+f.B || 200) * S;
+      const R = (+f.R || 485) * S, middleL = (+f.L || 430) * S;
+      const L1 = (+f.L1 || 90) * S, L2 = (+f.L2 || 135) * S;
+      const totalL = middleL + L1 + L2;
+      
+      const p1 = new THREE.Group();
+      _hollowOffset(p1, W, H, W, H, 0, L1);
+      p1.position.x = -totalL / 2 + L1 / 2;
+      pivot.add(p1);
+
+      const p2 = new THREE.Group();
+      _hollowOffset(p2, W, H, W, H, R, middleL);
+      p2.position.x = -totalL / 2 + L1 + middleL / 2;
+      pivot.add(p2);
+
+      const p3 = new THREE.Group();
+      _hollowOffset(p3, W, H, W, H, 0, L2);
+      p3.position.x = totalL / 2 - L2 / 2;
+      p3.position.y = R;
+      pivot.add(p3);
+
+      _flangeRect(pivot, -totalL / 2, W, H, m); 
+      _flangeRect(pivot, totalL / 2, W, H, m, R);
+
+      _3d.dimLines = [
+        { p1: _v3(-totalL / 2, -H / 2 - 0.2, W / 2), p2: _v3(-totalL / 2 + L1, -H / 2 - 0.2, W / 2), text: f.L1 ? `${f.L1} mm` : 'L1' },
+        { p1: _v3(-totalL / 2 + L1, -H / 2 - 0.2, W / 2), p2: _v3(totalL / 2 - L2, -H / 2 - 0.2, W / 2), text: middleL > 0 ? `${Math.round(middleL/S)} mm` : '' },
+        { p1: _v3(totalL / 2 - L2, -H / 2 - 0.2, W / 2), p2: _v3(totalL / 2, -H / 2 - 0.2, W / 2), text: f.L2 ? `${f.L2} mm` : 'L2' },
+        { p1: _v3(-totalL / 2, -H / 2 - 0.4, W / 2), p2: _v3(totalL / 2, -H / 2 - 0.4, W / 2), text: `Total L ${Math.round(totalL/S)} mm`, color: '#1a7a20' },
+        { p1: _v3(-totalL / 2 - 0.13, -H / 2, 0), p2: _v3(-totalL / 2 - 0.13, H / 2, 0), text: f.B ? `B ${f.B} mm` : 'B' },
+        { p1: _v3(totalL / 2 + 0.13, -H / 2 + R, 0), p2: _v3(totalL / 2 + 0.13, H / 2 + R, 0), text: f.B ? `B ${f.B} mm` : 'B' },
+        { p1: _v3(totalL / 2 + 0.13, -H / 2, 0), p2: _v3(totalL / 2 + 0.13, -H / 2 + R, 0), text: f.R ? `R ${f.R} mm` : 'R', color: '#D72B2B' },
+        { p1: _v3(-totalL / 2, -H / 2 - 0.12, -W / 2), p2: _v3(-totalL / 2, -H / 2 - 0.12, W / 2), text: f.A ? `A ${f.A} mm` : 'A' }
+      ];
+      _3d.setRot(0.40, 0.60);
+      _fitCam(totalL, H + Math.abs(R), W); break;
+    }
+    case 'offset_duct_angular': {
+      const W = (+f.A || 750) * S, B = (+f.B || 300) * S;
+      const H = (+f.R || 620) * S, L = (+f.L || 930) * S;
+      const ang1 = Math.min(60, Math.max(-60, +f.A1 || 30)) * Math.PI / 180;
+      const ang2 = Math.min(60, Math.max(-60, +f.A2 || 30)) * Math.PI / 180;
+      let Rc = (+f.Rc || 150) * S;
+      
+      const b_half = B / 2;
+      const s1 = b_half * Math.tan(ang1) + 20 * S;
+      const s2 = b_half * Math.tan(ang2) + 20 * S;
+      let dx = L - 2 * b_half * (Math.tan(ang1) + Math.tan(ang2)) - 40 * S;
+      if (dx < 10 * S) dx = 10 * S;
+      
+      let r = Rc + b_half;
+      const max_r = (dx * dx + H * H) / (4 * H);
+      if (r > max_r) {
+        r = max_r * 0.99;
+        Rc = r - b_half;
+      }
+      
+      const T = Math.max(Math.min(W, B) * 0.08, 0.018);
+
+      function getEdgePts(b, isTop) {
+        const dy = H - 2 * r;
+        const D = Math.hypot(dx, dy);
+        const alpha = Math.atan2(dy, dx) + Math.asin(2 * r / D);
+        
+        const r1 = isTop ? r + b : r - b;
+        const r2 = isTop ? r - b : r + b;
+        const yStart = isTop ? b : -b;
+        const yEnd = isTop ? -H + b : -H - b;
+        const xStart = -s1 + (isTop ? -b : b) * Math.tan(ang1);
+        const xEnd = dx + s2 + (isTop ? -b : b) * Math.tan(ang2);
+
+        const path = new THREE.Path();
+        path.moveTo(xStart, yStart);
+        path.lineTo(0, yStart);
+        path.absarc(0, -r, r1, Math.PI/2, Math.PI/2 - alpha, true);
+        path.absarc(dx, -H + r, r2, -Math.PI/2 - alpha, -Math.PI/2, false);
+        path.lineTo(xEnd, yEnd);
+        return path.getPoints(64);
+      }
+
+      const topOut = getEdgePts(b_half, true), botOut = getEdgePts(b_half, false);
+      const topInn = getEdgePts(b_half - T, true), botInn = getEdgePts(b_half - T, false);
+
+      function sweep(pts, width, mat, flip) {
+        const N = pts.length;
+        const verts = new Float32Array(N * 6);
+        for (let i = 0; i < N; i++) {
+          verts[i*6+0]=pts[i].x; verts[i*6+1]=pts[i].y; verts[i*6+2]=width/2;
+          verts[i*6+3]=pts[i].x; verts[i*6+4]=pts[i].y; verts[i*6+5]=-width/2;
+        }
+        const idx = [];
+        for (let i = 0; i < N - 1; i++) {
+          const a = i * 2, b = i * 2 + 1, c = i * 2 + 2, d = i * 2 + 3;
+          if (flip) idx.push(a, b, c, c, b, d);
+          else idx.push(a, c, b, b, c, d);
+        }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+        g.setIndex(idx); g.computeVertexNormals();
+        _mesh(pivot, g, mat);
+        _edge(pivot, g, m.edge);
+      }
+
+      sweep(topOut, W, m.galv, false);
+      sweep(botOut, W, m.galv, true);
+      sweep(topInn, W - 2*T, m.inner, true);
+      sweep(botInn, W - 2*T, m.inner, false);
+
+      function buildSideWall(tPts, bPts, z, mat) {
+        const sh = new THREE.Shape();
+        sh.moveTo(tPts[0].x, tPts[0].y);
+        for (let i = 1; i < tPts.length; i++) sh.lineTo(tPts[i].x, tPts[i].y);
+        sh.lineTo(bPts[bPts.length-1].x, bPts[bPts.length-1].y);
+        for (let i = bPts.length - 1; i >= 0; i--) sh.lineTo(bPts[i].x, bPts[i].y);
+        sh.lineTo(tPts[0].x, tPts[0].y);
+        const g = new THREE.ShapeGeometry(sh);
+        const mesh = new THREE.Mesh(g, mat);
+        mesh.position.z = z;
+        pivot.add(mesh);
+        _edge(pivot, g, m.edge, [0, 0, z]);
+      }
+
+      buildSideWall(topOut, botOut, W/2, m.galv);
+      buildSideWall(topOut, botOut, -W/2, m.galv);
+      buildSideWall(topInn, botInn, W/2 - T, m.inner);
+      buildSideWall(topInn, botInn, -W/2 + T, m.inner);
+
+      const fl1 = new THREE.Group();
+      fl1.position.set(-s1, 0, 0);
+      fl1.rotation.z = ang1;
+      _flangeRect(fl1, 0, W, B / Math.cos(ang1), m);
+      pivot.add(fl1);
+
+      const fl2 = new THREE.Group();
+      fl2.position.set(dx + s2, -H, 0);
+      fl2.rotation.z = ang2;
+      _flangeRect(fl2, 0, W, B / Math.cos(ang2), m);
+      pivot.add(fl2);
+
+      const ox = (dx + s2 - s1) / 2;
+      const oy = -H / 2;
+      pivot.children.forEach(c => { c.position.x -= ox; c.position.y -= oy; });
+
+      const leftX = -s1 - (B/2)*Math.tan(ang1);
+      const rightX = dx + s2 + (B/2)*Math.tan(ang2);
+      
+      _3d.dimLines = [
+        { p1: _v3(leftX - ox, -H - B/2 - 0.2 - oy, W/2), p2: _v3(rightX - ox, -H - B/2 - 0.2 - oy, W/2), text: f.L ? `L ${f.L} mm` : 'L', color: '#1a7a20' },
+        { p1: _v3(leftX - ox - 0.2, B/2 - oy, 0), p2: _v3(leftX - ox - 0.2 + B*Math.tan(ang1), -B/2 - oy, 0), text: f.B ? `B ${f.B} mm` : 'B' },
+        { p1: _v3(rightX - ox + 0.2 - B*Math.tan(ang2), -H + B/2 - oy, 0), p2: _v3(rightX - ox + 0.2, -H - B/2 - oy, 0), text: f.B ? `B ${f.B} mm` : 'B' },
+        { p1: _v3(-s1 - ox, B/2 + 0.15 - oy, -W/2), p2: _v3(-s1 - ox, B/2 + 0.15 - oy, W/2), text: f.A ? `A ${f.A} mm` : 'A' },
+        { p1: _v3(dx + s2 - ox, -H + B/2 + 0.15 - oy, -W/2), p2: _v3(dx + s2 - ox, -H + B/2 + 0.15 - oy, W/2), text: f.A ? `A ${f.A} mm` : 'A' },
+        { p1: _v3(0 - ox, -r - oy, W/2), p2: _v3(0 - ox, -r + Rc - oy, W/2), text: f.Rc ? `R ${f.Rc} mm` : 'R', color: '#D72B2B' },
+        { p1: _v3(dx - ox, -H + r - oy, W/2), p2: _v3(dx - ox, -H + r - Rc - oy, W/2), text: f.Rc ? `R ${f.Rc} mm` : 'R', color: '#D72B2B' },
+        { p1: _v3(-s1 - ox, B/2 + 0.2 - oy, 0), p2: _v3(-s1 - ox - B*Math.tan(ang1), B/2 + 0.2 - oy, 0), text: f.A1 ? `Ang ${f.A1}°` : 'Ang' },
+        { p1: _v3(dx + s2 - ox, -H - B/2 - 0.2 - oy, 0), p2: _v3(dx + s2 - ox + B*Math.tan(ang2), -H - B/2 - 0.2 - oy, 0), text: f.A2 ? `Ang ${f.A2}°` : 'Ang' }
+      ];
+      _3d.setRot(0.40, 0.60);
+      _fitCam(L, H + B, W); break;
+    }
+    case 'rect_to_round': {
+      const W = (+f.A || 300) * S, H = (+f.B || 250) * S, D = (+f.D || 200) * S, L = (+f.L || 300) * S;
+      _rectToRound(pivot, W, H, D / 2, L);
+      _3d.dimLines = [
+        { p1: _v3(-L / 2, H / 2 + 0.12, 0), p2: _v3(L / 2, D / 2 + 0.12, 0), text: f.L ? `L ${f.L} mm` : 'L' },
+        { p1: _v3(-L / 2 - 0.13, -H / 2, 0), p2: _v3(-L / 2 - 0.13, H / 2, 0), text: f.B ? `${f.B} mm` : 'B' },
+        { p1: _v3(-L / 2, -H / 2 - 0.12, -W / 2), p2: _v3(-L / 2, -H / 2 - 0.12, W / 2), text: f.A ? `${f.A} mm` : 'A' },
+        { p1: _v3(L / 2 + 0.13, -D / 2, 0), p2: _v3(L / 2 + 0.13, D / 2, 0), text: f.D ? `Ø${f.D} mm` : 'D', color: '#D72B2B' },
+      ];
+      _3d.setRot(0.40, 0.60);
+      _fitCam(L, Math.max(H, D), Math.max(W, D)); break;
     }
     case 'fan_conn': {
       // Fan Connection: AXB inlet -> CXD outlet x Total Length L
       // 11 user dimensions: A, B, C, D, L, F1, S (top step), L1, L2, Fb, Fi
       // Shape: straight inlet (L1) + tapered body (L2) + outlet flange section (Fb)
       // The outlet center is at y=0; inlet top is (D/2 - S) above the outlet center bottom
-      const A  = (+f.A  || 300) * S, B  = (+f.B  || 200) * S;
-      const C  = (+f.C  || 240) * S, D  = (+(f.D2||f.D) || 340) * S;
-      const TL = (+f.L  || 350) * S;  // Total Length
-      const F1 = (+f.F1 ||  20) * S;  // Top flange
-      const SV = (+f.S  ||  75) * S;  // Top step: how much outlet top is above inlet top
+      const A = (+f.A || 300) * S, B = (+f.B || 200) * S;
+      const C = (+f.C || 240) * S, D = (+(f.D2 || f.D) || 340) * S;
+      const TL = (+f.L || 350) * S;  // Total Length
+      const F1 = (+f.F1 || 20) * S;  // Top flange
+      const SV = (+f.S || 75) * S;  // Top step: how much outlet top is above inlet top
       const L1 = (+f.L1 || 150) * S;  // Inlet straight section
       const L2 = (+f.L2 || 140) * S;  // Tapered body section
-      const Fb = (+f.Fb ||  60) * S;  // Outlet flange section
-      const Fi = (+f.Fi ||  20) * S;  // Center gap / inner seam
-      const Tw = Math.min(A,B,C,D) * 0.04;
+      const Fb = (+f.Fb || 60) * S;  // Outlet flange section
+      const Fi = (+f.Fi || 20) * S;  // Center gap / inner seam
+      const Tw = Math.min(A, B, C, D) * 0.04;
 
       // Z axis: -TL/2 (inlet) to +TL/2 (outlet)
-      const zi  = -TL/2;
+      const zi = -TL / 2;
       const ztS = zi + L1;          // taper starts here
       const ztE = ztS + L2;         // taper ends, outlet straight section starts
-      const zo  = ztE + Fb;         // outlet face (= TL/2)
+      const zo = ztE + Fb;         // outlet face (= TL/2)
 
       // Y positions: outlet centered at y=0
       // inlet top = outlet top - SV = D/2 - SV
-      const yo_top = D/2,  yo_bot = -D/2;
-      const yi_top = D/2 - SV,  yi_bot = D/2 - SV - B;
-      const hA = A/2, hC = C/2;
+      const yo_top = D / 2, yo_bot = -D / 2;
+      const yi_top = D / 2 - SV, yi_bot = D / 2 - SV - B;
+      const hA = A / 2, hC = C / 2;
 
       // Helper: quad polygon (2 triangles + edge)
       function addQ(p1, p2, p3, p4, mat) {
         const pos = new Float32Array([
-          p1[0],p1[1],p1[2], p2[0],p2[1],p2[2], p3[0],p3[1],p3[2],
-          p1[0],p1[1],p1[2], p3[0],p3[1],p3[2], p4[0],p4[1],p4[2],
+          p1[0], p1[1], p1[2], p2[0], p2[1], p2[2], p3[0], p3[1], p3[2],
+          p1[0], p1[1], p1[2], p3[0], p3[1], p3[2], p4[0], p4[1], p4[2],
         ]);
         const g2 = new THREE.BufferGeometry();
         g2.setAttribute('position', new THREE.BufferAttribute(pos, 3));
         g2.computeVertexNormals();
         pivot.add(new THREE.Mesh(g2, mat));
         const ep = new Float32Array([
-          p1[0],p1[1],p1[2], p2[0],p2[1],p2[2],
-          p2[0],p2[1],p2[2], p3[0],p3[1],p3[2],
-          p3[0],p3[1],p3[2], p4[0],p4[1],p4[2],
-          p4[0],p4[1],p4[2], p1[0],p1[1],p1[2],
+          p1[0], p1[1], p1[2], p2[0], p2[1], p2[2],
+          p2[0], p2[1], p2[2], p3[0], p3[1], p3[2],
+          p3[0], p3[1], p3[2], p4[0], p4[1], p4[2],
+          p4[0], p4[1], p4[2], p1[0], p1[1], p1[2],
         ]);
         const eg = new THREE.BufferGeometry();
         eg.setAttribute('position', new THREE.BufferAttribute(ep, 3));
@@ -762,37 +1132,37 @@ function build3DDuct(key, f) {
       }
 
       // SECTION 1: Straight inlet duct (A x B, length L1)
-      addQ([-hA,yi_top,zi], [hA,yi_top,zi], [hA,yi_top,ztS], [-hA,yi_top,ztS], m.galv);  // top
-      addQ([-hA,yi_bot,zi], [-hA,yi_bot,ztS], [hA,yi_bot,ztS], [hA,yi_bot,zi], m.galv);  // bottom
-      addQ([-hA,yi_bot,zi], [-hA,yi_top,zi], [-hA,yi_top,ztS], [-hA,yi_bot,ztS], m.galv);// left
-      addQ([hA,yi_bot,zi], [hA,yi_bot,ztS], [hA,yi_top,ztS], [hA,yi_top,zi], m.galv);    // right
+      addQ([-hA, yi_top, zi], [hA, yi_top, zi], [hA, yi_top, ztS], [-hA, yi_top, ztS], m.galv);  // top
+      addQ([-hA, yi_bot, zi], [-hA, yi_bot, ztS], [hA, yi_bot, ztS], [hA, yi_bot, zi], m.galv);  // bottom
+      addQ([-hA, yi_bot, zi], [-hA, yi_top, zi], [-hA, yi_top, ztS], [-hA, yi_bot, ztS], m.galv);// left
+      addQ([hA, yi_bot, zi], [hA, yi_bot, ztS], [hA, yi_top, ztS], [hA, yi_top, zi], m.galv);    // right
 
       // SECTION 2: Tapered body (A x B -> C x D, length L2)
-      addQ([-hA,yi_top,ztS], [hA,yi_top,ztS], [hC,yo_top,ztE], [-hC,yo_top,ztE], m.galv);  // top
-      addQ([-hA,yi_bot,ztS], [-hC,yo_bot,ztE], [hC,yo_bot,ztE], [hA,yi_bot,ztS], m.galv);  // bottom
-      addQ([-hA,yi_bot,ztS], [-hA,yi_top,ztS], [-hC,yo_top,ztE], [-hC,yo_bot,ztE], m.galv);// left
-      addQ([hA,yi_bot,ztS], [hC,yo_bot,ztE], [hC,yo_top,ztE], [hA,yi_top,ztS], m.galv);    // right
+      addQ([-hA, yi_top, ztS], [hA, yi_top, ztS], [hC, yo_top, ztE], [-hC, yo_top, ztE], m.galv);  // top
+      addQ([-hA, yi_bot, ztS], [-hC, yo_bot, ztE], [hC, yo_bot, ztE], [hA, yi_bot, ztS], m.galv);  // bottom
+      addQ([-hA, yi_bot, ztS], [-hA, yi_top, ztS], [-hC, yo_top, ztE], [-hC, yo_bot, ztE], m.galv);// left
+      addQ([hA, yi_bot, ztS], [hC, yo_bot, ztE], [hC, yo_top, ztE], [hA, yi_top, ztS], m.galv);    // right
 
       // SECTION 3: Outlet flange section (C x D, length Fb)
-      addQ([-hC,yo_top,ztE], [hC,yo_top,ztE], [hC,yo_top,zo], [-hC,yo_top,zo], m.galv);  // top
-      addQ([-hC,yo_bot,ztE], [-hC,yo_bot,zo], [hC,yo_bot,zo], [hC,yo_bot,ztE], m.galv);  // bottom
-      addQ([-hC,yo_bot,ztE], [-hC,yo_top,ztE], [-hC,yo_top,zo], [-hC,yo_bot,zo], m.galv);// left
-      addQ([hC,yo_bot,ztE], [hC,yo_bot,zo], [hC,yo_top,zo], [hC,yo_top,ztE], m.galv);    // right
+      addQ([-hC, yo_top, ztE], [hC, yo_top, ztE], [hC, yo_top, zo], [-hC, yo_top, zo], m.galv);  // top
+      addQ([-hC, yo_bot, ztE], [-hC, yo_bot, zo], [hC, yo_bot, zo], [hC, yo_bot, ztE], m.galv);  // bottom
+      addQ([-hC, yo_bot, ztE], [-hC, yo_top, ztE], [-hC, yo_top, zo], [-hC, yo_bot, zo], m.galv);// left
+      addQ([hC, yo_bot, ztE], [hC, yo_bot, zo], [hC, yo_top, zo], [hC, yo_top, ztE], m.galv);    // right
 
       // Face openings (dark panels)
-      _box(pivot, A, B, Tw*0.5, m.inner, m.edge, [0, (yi_top+yi_bot)/2, zi - Tw*0.25]);
-      _box(pivot, C, D, Tw*0.5, m.inner, m.edge, [0, 0, zo + Tw*0.25]);
+      _box(pivot, A, B, Tw * 0.5, m.inner, m.edge, [0, (yi_top + yi_bot) / 2, zi - Tw * 0.25]);
+      _box(pivot, C, D, Tw * 0.5, m.inner, m.edge, [0, 0, zo + Tw * 0.25]);
 
       // Top flange F1 (visible lip at outlet top edge)
-      _box(pivot, C + F1*2, F1, Fb*0.25, m.flange, m.edge, [0, yo_top + F1/2, zo - Fb*0.12]);
+      _box(pivot, C + F1 * 2, F1, Fb * 0.25, m.flange, m.edge, [0, yo_top + F1 / 2, zo - Fb * 0.12]);
       // Side flanges
-      _box(pivot, F1, D + F1*2, Fb*0.25, m.flange, m.edge, [ hC + F1/2, 0, zo - Fb*0.12]);
-      _box(pivot, F1, D + F1*2, Fb*0.25, m.flange, m.edge, [-hC - F1/2, 0, zo - Fb*0.12]);
+      _box(pivot, F1, D + F1 * 2, Fb * 0.25, m.flange, m.edge, [hC + F1 / 2, 0, zo - Fb * 0.12]);
+      _box(pivot, F1, D + F1 * 2, Fb * 0.25, m.flange, m.edge, [-hC - F1 / 2, 0, zo - Fb * 0.12]);
       // Bottom flange
-      _box(pivot, C + F1*2, F1, Fb*0.25, m.flange, m.edge, [0, yo_bot - F1/2, zo - Fb*0.12]);
+      _box(pivot, C + F1 * 2, F1, Fb * 0.25, m.flange, m.edge, [0, yo_bot - F1 / 2, zo - Fb * 0.12]);
 
       // Center gap Fi (seam line on outlet face)
-      _box(pivot, Fi, D*0.85, Tw*0.3, m.flange, m.edge, [0, 0, zo + Tw*0.15]);
+      _box(pivot, Fi, D * 0.85, Tw * 0.3, m.flange, m.edge, [0, 0, zo + Tw * 0.15]);
 
       // Dimension lines
       const dxO = Math.max(hA, hC) + 0.16;
@@ -800,31 +1170,31 @@ function build3DDuct(key, f) {
 
       _3d.dimLines = [
         // A - inlet width
-        { p1: _v3(-hA, yi_top+0.08, zi),   p2: _v3(hA, yi_top+0.08, zi),   text: f.A  ? `A:${f.A}`       : 'A'  },
+        { p1: _v3(-hA, yi_top + 0.08, zi), p2: _v3(hA, yi_top + 0.08, zi), text: f.A ? `A:${f.A}` : 'A' },
         // B - inlet height
-        { p1: _v3(-dxO, yi_bot, zi),        p2: _v3(-dxO, yi_top, zi),       text: f.B  ? `B:${f.B}`       : 'B'  },
+        { p1: _v3(-dxO, yi_bot, zi), p2: _v3(-dxO, yi_top, zi), text: f.B ? `B:${f.B}` : 'B' },
         // C - outlet width
-        { p1: _v3(-hC, yo_top+F1+0.07, zo), p2: _v3(hC, yo_top+F1+0.07, zo), text: f.C  ? `C:${f.C}`       : 'C'  },
+        { p1: _v3(-hC, yo_top + F1 + 0.07, zo), p2: _v3(hC, yo_top + F1 + 0.07, zo), text: f.C ? `C:${f.C}` : 'C' },
         // D - outlet height
-        { p1: _v3(dxO, yo_bot, zo),          p2: _v3(dxO, yo_top, zo),         text: (f.D2||f.D) ? `D:${f.D2||f.D}` : 'D', color:'#D72B2B' },
+        { p1: _v3(dxO, yo_bot, zo), p2: _v3(dxO, yo_top, zo), text: (f.D2 || f.D) ? `D:${f.D2 || f.D}` : 'D', color: '#D72B2B' },
         // L - total length
-        { p1: _v3(0, dyO+0.05, zi),          p2: _v3(0, dyO+0.05, zo),         text: f.L  ? `L:${f.L}`       : 'L',  color:'#1a7a20'  },
+        { p1: _v3(0, dyO + 0.05, zi), p2: _v3(0, dyO + 0.05, zo), text: f.L ? `L:${f.L}` : 'L', color: '#1a7a20' },
         // F1 - top flange
-        { p1: _v3(-hC*0.4, yo_top, zo),     p2: _v3(-hC*0.4, yo_top+F1, zo), text: f.F1 ? `F1:${f.F1}`     : 'F1' },
+        { p1: _v3(-hC * 0.4, yo_top, zo), p2: _v3(-hC * 0.4, yo_top + F1, zo), text: f.F1 ? `F1:${f.F1}` : 'F1' },
         // S - top step offset
-        { p1: _v3(dxO+0.08, yi_top, ztS),   p2: _v3(dxO+0.08, yo_top, ztS),  text: f.S  ? `S:${f.S}`       : 'S',  color:'#8B4513'  },
+        { p1: _v3(dxO + 0.08, yi_top, ztS), p2: _v3(dxO + 0.08, yo_top, ztS), text: f.S ? `S:${f.S}` : 'S', color: '#8B4513' },
         // L1 - inlet section length
-        { p1: _v3(0, yi_bot-0.12, zi),      p2: _v3(0, yi_bot-0.12, ztS),    text: f.L1 ? `L1:${f.L1}`     : 'L1' },
+        { p1: _v3(0, yi_bot - 0.12, zi), p2: _v3(0, yi_bot - 0.12, ztS), text: f.L1 ? `L1:${f.L1}` : 'L1' },
         // L2 - body/taper section length
-        { p1: _v3(hC*0.5, yo_bot-0.12, ztS), p2: _v3(hC*0.5, yo_bot-0.12, ztE), text: f.L2 ? `L2:${f.L2}`  : 'L2' },
+        { p1: _v3(hC * 0.5, yo_bot - 0.12, ztS), p2: _v3(hC * 0.5, yo_bot - 0.12, ztE), text: f.L2 ? `L2:${f.L2}` : 'L2' },
         // Fb - outlet flange length
-        { p1: _v3(-hC*0.5, yo_bot-0.12, ztE), p2: _v3(-hC*0.5, yo_bot-0.12, zo), text: f.Fb ? `Fb:${f.Fb}` : 'Fb' },
+        { p1: _v3(-hC * 0.5, yo_bot - 0.12, ztE), p2: _v3(-hC * 0.5, yo_bot - 0.12, zo), text: f.Fb ? `Fb:${f.Fb}` : 'Fb' },
         // Fi - center gap (at outlet face)
-        { p1: _v3(-Fi/2, yo_top*0.3, zo+0.06), p2: _v3(Fi/2, yo_top*0.3, zo+0.06), text: f.Fi ? `Fi:${f.Fi}` : 'Fi' },
+        { p1: _v3(-Fi / 2, yo_top * 0.3, zo + 0.06), p2: _v3(Fi / 2, yo_top * 0.3, zo + 0.06), text: f.Fi ? `Fi:${f.Fi}` : 'Fi' },
       ];
 
       _3d.setRot(0.45, 0.72);
-      _3d.setBase(Math.max(A,C)*2.6, D*2.4, TL*2.8);
+      _3d.setBase(Math.max(A, C) * 2.6, D * 2.4, TL * 2.8);
       break;
     }
     case 'reducer_duct_r': {
@@ -912,40 +1282,231 @@ function build3DDuct(key, f) {
       ]; _fitCam(L, B + RL, A); break;
     }
     case 'plenum_box': {
-      const A = (+f.A || 600) * S, B = (+f.B || 400) * S, H = (+f.H || 300) * S, D = (+f.D || 200) * S, H2 = (+f.H2 || 150) * S;
-      const T = Math.min(A, B, H) * 0.08;
-      [
-        { w: A, h: T, d: B, px: 0, py: -H / 2 + T / 2, pz: 0 },
-        { w: A, h: T, d: B, px: 0, py: H / 2 - T / 2, pz: 0 },
-        { w: T, h: H, d: B, px: -A / 2 + T / 2, py: 0, pz: 0 },
-        { w: T, h: H, d: B, px: A / 2 - T / 2, py: 0, pz: 0 },
-        { w: A, h: H, d: T, px: 0, py: 0, pz: -B / 2 + T / 2 },
-      ].forEach(p => _box(pivot, p.w, p.h, p.d, m.galv, m.edge, [p.px, p.py, p.pz]));
-      const cg = new THREE.Group(); _hollowRound(cg, H2, D / 2, D / 2 * 0.09); cg.position.set(A / 2 + H2 / 2, 0, 0); pivot.add(cg);
+      const A = (+f.A || 490) * S, B = (+f.B || 290) * S, H2 = (+f.H2 || 300) * S;
+      const C = (+f.C || 450) * S, D = (+f.D || 250) * S, H1 = (+f.H1 || 50) * S;
+      const D2 = (+f.D2 || 250) * S, H3 = (+f.H3 || 50) * S;
+      const T = Math.min(A, B, H2) * 0.02;
+
+      // Front Face (Z = B/2) with hole
+      const frontShape = new THREE.Shape();
+      frontShape.moveTo(-A/2, -H2/2); frontShape.lineTo(A/2, -H2/2);
+      frontShape.lineTo(A/2, H2/2); frontShape.lineTo(-A/2, H2/2);
+      const frontHole = new THREE.Path();
+      frontHole.absarc(0, 0, D2/2, 0, Math.PI*2, false);
+      frontShape.holes.push(frontHole);
+      const frontGeom = new THREE.ShapeGeometry(frontShape);
+      frontGeom.translate(0, 0, B/2);
+      _mesh(pivot, frontGeom, m.galv); _edge(pivot, frontGeom, m.edge);
+
+      // Bottom Face (Y = -H2/2) with rectangular hole
+      const botShape = new THREE.Shape();
+      botShape.moveTo(-A/2, -B/2); botShape.lineTo(A/2, -B/2);
+      botShape.lineTo(A/2, B/2); botShape.lineTo(-A/2, B/2);
+      const botHole = new THREE.Path();
+      botHole.moveTo(-C/2, -D/2); botHole.lineTo(-C/2, D/2);
+      botHole.lineTo(C/2, D/2); botHole.lineTo(C/2, -D/2);
+      botShape.holes.push(botHole);
+      const botGeom = new THREE.ShapeGeometry(botShape);
+      botGeom.rotateX(Math.PI/2); botGeom.translate(0, -H2/2, 0);
+      _mesh(pivot, botGeom, m.galv); _edge(pivot, botGeom, m.edge);
+
+      // Solid Faces
+      const backGeom = new THREE.PlaneGeometry(A, H2); backGeom.rotateY(Math.PI); backGeom.translate(0, 0, -B/2);
+      _mesh(pivot, backGeom, m.galv); _edge(pivot, backGeom, m.edge);
+
+      const topGeom = new THREE.PlaneGeometry(A, B); topGeom.rotateX(-Math.PI/2); topGeom.translate(0, H2/2, 0);
+      _mesh(pivot, topGeom, m.galv); _edge(pivot, topGeom, m.edge);
+
+      const leftGeom = new THREE.PlaneGeometry(B, H2); leftGeom.rotateY(-Math.PI/2); leftGeom.translate(-A/2, 0, 0);
+      _mesh(pivot, leftGeom, m.galv); _edge(pivot, leftGeom, m.edge);
+
+      const rightGeom = new THREE.PlaneGeometry(B, H2); rightGeom.rotateY(Math.PI/2); rightGeom.translate(A/2, 0, 0);
+      _mesh(pivot, rightGeom, m.galv); _edge(pivot, rightGeom, m.edge);
+
+      // Round Connector (Front)
+      const cg = new THREE.Group(); _hollowRound(cg, H3, D2/2, T);
+      cg.rotation.y = Math.PI/2; cg.position.set(0, 0, B/2 + H3/2);
+      pivot.add(cg);
+
+      // Rectangular Neck (Bottom)
+      const neck = new THREE.Group(); _hollowRect(neck, H1, D, C, T);
+      neck.rotation.z = Math.PI/2; neck.position.set(0, -H2/2 - H1/2, 0);
+      pivot.add(neck);
+
+      // Bottom Flange of Neck (extending INWARDS)
+      const ext = (+f.F || 0) * S;
+      if (ext > 0) {
+        const flange = new THREE.Group(); 
+        _hollowRect(flange, T, D, C, ext);
+        flange.rotation.z = Math.PI/2; 
+        flange.position.set(0, -H2/2 - H1 - T/2, 0);
+        pivot.add(flange);
+      }
+
       _3d.dimLines = [
-        { p1: _v3(-A / 2, H / 2 + 0.12, 0), p2: _v3(A / 2, H / 2 + 0.12, 0), text: f.A ? `${f.A} mm` : 'A' },
-        { p1: _v3(-A / 2 - 0.14, -H / 2, 0), p2: _v3(-A / 2 - 0.14, H / 2, 0), text: f.H ? `H ${f.H} mm` : 'H' },
-        { p1: _v3(-A / 2 - 0.14, H / 2 + 0.1, -B / 2), p2: _v3(-A / 2 - 0.14, H / 2 + 0.1, B / 2), text: f.B ? `${f.B} mm` : 'B' },
-        { p1: _v3(A / 2 + H2 / 2 + 0.05, D / 2 + 0.06, 0), p2: _v3(A / 2 + H2 / 2 + 0.05, -D / 2 - 0.06, 0), text: f.D ? `Ø${f.D} mm` : 'D', color: '#D72B2B' },
-      ]; _fitCam(A + H2, H, B); break;
+        { p1: _v3(-A/2, H2/2 + 0.12, 0), p2: _v3(A/2, H2/2 + 0.12, 0), text: f.A ? `A ${f.A} mm` : 'A' },
+        { p1: _v3(A/2 + 0.12, H2/2, 0), p2: _v3(A/2 + 0.12, -H2/2, 0), text: f.H2 ? `H2 ${f.H2} mm` : 'H2' },
+        { p1: _v3(A/2 + 0.12, H2/2, -B/2), p2: _v3(A/2 + 0.12, H2/2, B/2), text: f.B ? `B ${f.B} mm` : 'B' },
+        { p1: _v3(-C/2, -H2/2 - H1 - 0.12, D/2), p2: _v3(C/2, -H2/2 - H1 - 0.12, D/2), text: f.C ? `C ${f.C} mm` : 'C' },
+        { p1: _v3(C/2 + 0.12, -H2/2 - H1, D/2), p2: _v3(C/2 + 0.12, -H2/2, D/2), text: f.H1 ? `H1 ${f.H1} mm` : 'H1' },
+        { p1: _v3(C/2 + 0.12, -H2/2 - H1, -D/2), p2: _v3(C/2 + 0.12, -H2/2 - H1, D/2), text: f.D ? `D ${f.D} mm` : 'D' },
+        { p1: _v3(0, -D2/2, B/2 + H3 + 0.08), p2: _v3(0, D2/2, B/2 + H3 + 0.08), text: f.D2 ? `Ø${f.D2}` : 'Ø', color: '#D72B2B' },
+        { p1: _v3(D2/2 + 0.12, 0, B/2), p2: _v3(D2/2 + 0.12, 0, B/2 + H3), text: f.H3 ? `H3 ${f.H3} mm` : 'H3' }
+      ];
+      if (ext > 0) {
+        _3d.dimLines.push({ p1: _v3(C/2, -H2/2 - H1 - T/2, D/2 + 0.1), p2: _v3(C/2 - ext, -H2/2 - H1 - T/2, D/2 + 0.1), text: f.F ? `F ${f.F} mm` : 'F', color: '#D72B2B' });
+      }
+      _fitCam(A + D2, H2 + H1, B + H3); break;
     }
     case 'plenum_top': {
-      const A = (+f.A || 600) * S, B = (+f.B || 400) * S, H = (+f.H || 300) * S, D = (+f.D || 200) * S, H2 = (+f.H2 || 150) * S;
-      const T = Math.min(A, B, H) * 0.08;
-      [
-        { w: A, h: T, d: B, px: 0, py: -H / 2 + T / 2, pz: 0 },
-        { w: T, h: H, d: B, px: -A / 2 + T / 2, py: 0, pz: 0 },
-        { w: T, h: H, d: B, px: A / 2 - T / 2, py: 0, pz: 0 },
-        { w: A, h: H, d: T, px: 0, py: 0, pz: -B / 2 + T / 2 },
-        { w: A, h: H, d: T, px: 0, py: 0, pz: B / 2 - T / 2 },
-      ].forEach(p => _box(pivot, p.w, p.h, p.d, m.galv, m.edge, [p.px, p.py, p.pz]));
-      const cg = new THREE.Group(); _hollowRound(cg, H2, D / 2, D / 2 * 0.09); cg.rotation.z = Math.PI / 2; cg.position.set(0, H / 2 + H2 / 2, 0); pivot.add(cg);
+      const A = (+f.A || 200) * S, B = (+f.B || 200) * S, H1 = (+f.H1 || 200) * S;
+      const D = (+f.D || 150) * S, H2 = (+f.H2 || 50) * S;
+      const T = Math.min(A, B, H1) * 0.02;
+
+      // Top Face (Y = H1/2) with hole
+      const topShape = new THREE.Shape();
+      topShape.moveTo(-A/2, -B/2); topShape.lineTo(A/2, -B/2);
+      topShape.lineTo(A/2, B/2); topShape.lineTo(-A/2, B/2);
+      const topHole = new THREE.Path();
+      topHole.absarc(0, 0, D/2, 0, Math.PI*2, false);
+      topShape.holes.push(topHole);
+      const topGeom = new THREE.ShapeGeometry(topShape);
+      topGeom.rotateX(-Math.PI/2); topGeom.translate(0, H1/2, 0);
+      _mesh(pivot, topGeom, m.galv); _edge(pivot, topGeom, m.edge);
+
+      // Solid Faces (Front, Back, Left, Right)
+      const frontGeom = new THREE.PlaneGeometry(A, H1); frontGeom.translate(0, 0, B/2);
+      _mesh(pivot, frontGeom, m.galv); _edge(pivot, frontGeom, m.edge);
+
+      const backGeom = new THREE.PlaneGeometry(A, H1); backGeom.rotateY(Math.PI); backGeom.translate(0, 0, -B/2);
+      _mesh(pivot, backGeom, m.galv); _edge(pivot, backGeom, m.edge);
+
+      const leftGeom = new THREE.PlaneGeometry(B, H1); leftGeom.rotateY(-Math.PI/2); leftGeom.translate(-A/2, 0, 0);
+      _mesh(pivot, leftGeom, m.galv); _edge(pivot, leftGeom, m.edge);
+
+      const rightGeom = new THREE.PlaneGeometry(B, H1); rightGeom.rotateY(Math.PI/2); rightGeom.translate(A/2, 0, 0);
+      _mesh(pivot, rightGeom, m.galv); _edge(pivot, rightGeom, m.edge);
+
+      // Bottom Flange (Y = -H1/2) extending INWARDS by F mm
+      const ext = (+f.F || 20) * S;
+      const tF = Math.min(A, B, H1) * 0.02; // flange thickness
+      const yF = -H1/2 - tF/2;
+      const flange = new THREE.Group(); 
+      _hollowRect(flange, tF, B, A, ext);
+      flange.rotation.z = Math.PI/2; 
+      flange.position.set(0, yF, 0);
+      pivot.add(flange);
+
+      // Round Connector (Top)
+      const cg = new THREE.Group(); _hollowRound(cg, H2, D/2, T);
+      cg.rotation.z = Math.PI/2; cg.position.set(0, H1/2 + H2/2, 0);
+      pivot.add(cg);
+
       _3d.dimLines = [
-        { p1: _v3(-A / 2, H / 2 + H2 + 0.12, 0), p2: _v3(A / 2, H / 2 + H2 + 0.12, 0), text: f.A ? `${f.A} mm` : 'A' },
-        { p1: _v3(-A / 2 - 0.14, -H / 2, 0), p2: _v3(-A / 2 - 0.14, H / 2, 0), text: f.H ? `H ${f.H} mm` : 'H' },
-        { p1: _v3(-A / 2 - 0.14, H / 2 + 0.1, -B / 2), p2: _v3(-A / 2 - 0.14, H / 2 + 0.1, B / 2), text: f.B ? `${f.B} mm` : 'B' },
-        { p1: _v3(A / 2 + 0.08, H / 2 + H2 / 2, 0), p2: _v3(-A / 2 - 0.08, H / 2 + H2 / 2, 0), text: f.D ? `Ø${f.D} mm` : 'D', color: '#D72B2B' },
-      ]; _fitCam(A, H + H2, B); break;
+        { p1: _v3(-A/2, H1/2 + 0.12, 0), p2: _v3(A/2, H1/2 + 0.12, 0), text: f.A ? `A ${f.A} mm` : 'A' },
+        { p1: _v3(-A/2 - 0.14, -H1/2, 0), p2: _v3(-A/2 - 0.14, H1/2, 0), text: f.H1 ? `H1 ${f.H1} mm` : 'H1' },
+        { p1: _v3(-A/2 - 0.14, H1/2 + 0.1, -B/2), p2: _v3(-A/2 - 0.14, H1/2 + 0.1, B/2), text: f.B ? `B ${f.B} mm` : 'B' },
+        { p1: _v3(-D/2, H1/2 + H2 + 0.08, 0), p2: _v3(D/2, H1/2 + H2 + 0.08, 0), text: f.D ? `Ø${f.D}` : 'Ø', color: '#D72B2B' },
+        { p1: _v3(D/2 + 0.12, H1/2, 0), p2: _v3(D/2 + 0.12, H1/2 + H2, 0), text: f.H2 ? `H2 ${f.H2} mm` : 'H2' },
+        { p1: _v3(A/2, -H1/2, B/2 + 0.12), p2: _v3(A/2 - ext, -H1/2, B/2 + 0.12), text: f.F ? `F ${f.F} mm` : 'F 20 mm', color: '#D72B2B' }
+      ];
+      _fitCam(A + 40*S, H1 + H2, B + 40*S); break;
+    }
+    case 'plenum_tapered': {
+      const A = (+f.A || 1005) * S, B1 = (+f.B1 || 140) * S, B2 = (+f.B2 || 100) * S;
+      const H1 = (+f.H1 || 300) * S, H2 = (+f.H2 || 30) * S;
+      const CW = (+f.CW || 300) * S, CD = (+f.CD || 100) * S, CH = (+f.CH || 50) * S;
+      const ext = (+f.F || 20) * S;
+      const T = Math.min(A, B1, H1) * 0.02; // thickness
+
+      const hw = Math.max(0, CW - CD) / 2;
+      const r = CD / 2;
+      const zNeck = -B1/2 + B2/2; // neck centered such that back face is flat
+
+      // Top Face with Oval Hole
+      const topBody = new THREE.Shape();
+      topBody.moveTo(-A/2, -B1/2); topBody.lineTo(A/2, -B1/2);
+      topBody.lineTo(A/2, B1/2); topBody.lineTo(-A/2, B1/2);
+      
+      const topHole = new THREE.Path();
+      topHole.absarc(-hw, 0, r, -Math.PI/2, Math.PI/2, true);
+      topHole.absarc(hw, 0, r, Math.PI/2, -Math.PI/2, true);
+      topBody.holes.push(topHole);
+      
+      const topBodyGeom = new THREE.ShapeGeometry(topBody);
+      topBodyGeom.rotateX(-Math.PI/2); 
+      topBodyGeom.translate(0, H1/2, 0);
+      _mesh(pivot, topBodyGeom, m.galv); _edge(pivot, topBodyGeom, m.edge);
+
+      // Side Faces (Tapered Body)
+      function addQuad(p1, p2, p3, p4, mat) {
+        const geom = new THREE.BufferGeometry();
+        const verts = new Float32Array([...p1, ...p2, ...p3, ...p1, ...p3, ...p4]);
+        geom.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+        geom.computeVertexNormals();
+        _mesh(pivot, geom, mat);
+        const edgeGeom = new THREE.BufferGeometry();
+        edgeGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array([...p1, ...p2, ...p2, ...p3, ...p3, ...p4, ...p4, ...p1]), 3));
+        pivot.add(new THREE.LineSegments(edgeGeom, m.edge));
+      }
+      
+      const yT = H1/2, yB = -H1/2;
+      const xA = A/2, zT_f = B1/2, zB_f = -B1/2 + B2; // front Z coordinates
+      const z_b = -B1/2; // flat back Z coordinate
+      
+      const ptFL = [-xA, yT, zT_f], ptFR = [xA, yT, zT_f], ptBL = [-xA, yT, z_b], ptBR = [xA, yT, z_b];
+      const pbFL = [-xA, yB, zB_f], pbFR = [xA, yB, zB_f], pbBL = [-xA, yB, z_b], pbBR = [xA, yB, z_b];
+      
+      addQuad(ptFL, pbFL, pbFR, ptFR, m.galv); // Front (sloped)
+      addQuad(ptBR, pbBR, pbBL, ptBL, m.galv); // Back (flat vertical)
+      addQuad(ptBL, pbBL, pbFL, ptFL, m.galv); // Left
+      addQuad(ptFR, pbFR, pbBR, ptBR, m.galv); // Right
+
+      // Neck (Bottom)
+      const neck = new THREE.Group();
+      _hollowRect(neck, H2, B2, A, T); 
+      neck.rotation.z = Math.PI/2;
+      neck.position.set(0, -H1/2 - H2/2, zNeck);
+      pivot.add(neck);
+
+      // Bottom Flange of Neck (extending INWARDS)
+      const tF = T; // match neck thickness
+      const yF = -H1/2 - H2 - tF/2; // placed perfectly below the neck
+      const flange = new THREE.Group(); 
+      _hollowRect(flange, tF, B2, A, ext);
+      flange.rotation.z = Math.PI/2; 
+      flange.position.set(0, yF, zNeck);
+      pivot.add(flange);
+
+      // Oval Connector (Top)
+      const ovalShape = new THREE.Shape();
+      ovalShape.absarc(hw, 0, r, -Math.PI/2, Math.PI/2, false);
+      ovalShape.absarc(-hw, 0, r, Math.PI/2, -Math.PI/2, false);
+      
+      const ovalHole2 = new THREE.Path();
+      ovalHole2.absarc(-hw, 0, r-T, -Math.PI/2, Math.PI/2, true);
+      ovalHole2.absarc(hw, 0, r-T, Math.PI/2, -Math.PI/2, true);
+      ovalShape.holes.push(ovalHole2);
+      
+      const ovalGeom = new THREE.ExtrudeGeometry(ovalShape, { depth: CH, bevelEnabled: false, curveSegments: 24 });
+      ovalGeom.rotateX(Math.PI/2); // Extrudes down
+      ovalGeom.translate(0, H1/2 + CH, 0);
+      _mesh(pivot, ovalGeom, m.galv); _edge(pivot, ovalGeom, m.edge);
+
+      _3d.dimLines = [
+        { p1: _v3(-A/2, H1/2 + 0.12, zT_f + 0.1), p2: _v3(A/2, H1/2 + 0.12, zT_f + 0.1), text: f.A ? `A ${f.A} mm` : 'A' },
+        { p1: _v3(-A/2 - 0.14, H1/2, z_b), p2: _v3(-A/2 - 0.14, H1/2, zT_f), text: f.B1 ? `B1 ${f.B1} mm` : 'B1' },
+        { p1: _v3(-A/2 - 0.14, -H1/2, z_b), p2: _v3(-A/2 - 0.14, -H1/2, zB_f), text: f.B2 ? `B2 ${f.B2} mm` : 'B2' },
+        { p1: _v3(A/2 + 0.14, -H1/2, 0), p2: _v3(A/2 + 0.14, H1/2, 0), text: f.H1 ? `H1 ${f.H1} mm` : 'H1' },
+        { p1: _v3(A/2 + 0.14, -H1/2 - H2, zNeck), p2: _v3(A/2 + 0.14, -H1/2, zNeck), text: f.H2 ? `H2 ${f.H2} mm` : 'H2' },
+        
+        { p1: _v3(-CW/2, H1/2 + CH + 0.08, 0), p2: _v3(CW/2, H1/2 + CH + 0.08, 0), text: f.CW ? `CW ${f.CW} mm` : 'CW' },
+        { p1: _v3(0, H1/2 + CH + 0.08, -CD/2), p2: _v3(0, H1/2 + CH + 0.08, CD/2), text: f.CD ? `CD ${f.CD} mm` : 'CD' },
+        { p1: _v3(CW/2 + 0.08, H1/2, 0), p2: _v3(CW/2 + 0.08, H1/2 + CH, 0), text: f.CH ? `CH ${f.CH} mm` : 'CH' },
+        
+        { p1: _v3(A/2, yF, zNeck + B2/2 + 0.1), p2: _v3(A/2 - ext, yF, zNeck + B2/2 + 0.1), text: f.F ? `F ${f.F} mm` : 'F 20 mm', color: '#D72B2B' }
+      ];
+      _fitCam(A + 40*S, H1 + H2 + CH, B1 + 40*S); break;
     }
     case 'wire_mesh': {
       const A = (+f.A || 600) * S, B = (+f.B || 400) * S;

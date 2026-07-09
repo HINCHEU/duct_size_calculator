@@ -1,178 +1,197 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CE&P — Duct Fabrication Calculator</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CE&P — Duct Fabrication Calculator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
+
 <body>
 
-<!-- HEADER -->
-<div class="header">
-  <div class="header-inner">
-    <div class="logo-area">
-      <div class="logo-badge">
-        <span class="logo-ce">CE</span>
-        <span class="logo-amp">&amp;</span>
-        <span class="logo-p">P</span>
-      </div>
-      <div class="logo-divider"></div>
-      <div class="logo-text">
-        <h1>Corporation</h1>
-        <p>optimize your investment</p>
-      </div>
-    </div>
-    <div class="header-actions">
-      <button class="btn-hdr btn-hdr-outline" onclick="exportCSV()">
-        ↓ Export CSV
-      </button>
-      <button class="btn-hdr btn-hdr-red" onclick="exportPrint()">
-        ⎙ Print Report
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- SUB-HEADER -->
-<div class="sub-header">
-  <span class="breadcrumb">CE&amp;P <span class="breadcrumb-sep">›</span> <span>Duct Fabrication</span> <span class="breadcrumb-sep">›</span> <span>Material Calculator</span></span>
-</div>
-
-<!-- MAIN -->
-<div class="main">
-
-  <!-- LEFT: FORM -->
-  <div>
-    <div class="card">
-      <div class="card-header">
-        <div class="card-header-left">
-          <div class="card-icon">
-            <svg viewBox="0 0 24 24"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-7 14H8v-2h4v2zm4-4H8v-2h8v2zm0-4H8V7h8v2z"/></svg>
-          </div>
-          <span class="card-title">Add Duct Item</span>
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-inner">
+      <div class="logo-area">
+        <div class="logo-badge">
+          <span class="logo-ce">CE</span>
+          <span class="logo-amp">&amp;</span>
+          <span class="logo-p">P</span>
+        </div>
+        <div class="logo-divider"></div>
+        <div class="logo-text">
+          <h1>Corporation</h1>
+          <p>optimize your investment</p>
         </div>
       </div>
-      <div class="card-body">
-
-        <div class="field-group">
-          <label class="field-label">Duct Type</label>
-          <select id="duct-type" class="field-input" onchange="onTypeChange()"></select>
-        </div>
-
-        <div id="duct-img-wrap" class="duct-diagram">
-          <div id="duct-3d-canvas-wrap"></div>
-          <img id="duct-static-img" class="y-duct-static" src="duct/y-duct.png" alt="Y-Duct diagram">
-          <div id="duct-static-overlay" class="y-duct-overlay"></div>
-          <button class="expand-3d-btn" type="button" onclick="open3DModal()" title="Expand 3D view" aria-label="Expand 3D view">⤢</button>
-          <span id="duct-type-tag" class="duct-type-tag">—</span>
-          <span class="dim-hint">🖱 Drag to rotate</span>
-        </div>
-
-        <div class="section-divider">
-          <div class="section-divider-line"></div>
-          <span class="section-divider-label">Dimensions (mm)</span>
-          <div class="section-divider-line"></div>
-        </div>
-
-        <div id="dynamic-fields" class="fields-grid"></div>
-
-        <div class="qty-row">
-          <span class="qty-label">Quantity</span>
-          <input type="number" id="qty" class="qty-input" value="1" min="1" oninput="updatePreview()">
-          <span style="font-size:12px;color:var(--text-muted)">nos</span>
-        </div>
-
-        <div id="preview-area" class="preview-box">
-          <div class="preview-muted">Fill dimensions above to preview surface area</div>
-        </div>
-
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="addItem()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-            Add to List
-          </button>
-          <button class="btn btn-secondary" onclick="clearFields()">Clear</button>
-        </div>
-
+      <div class="header-actions">
+        <button class="btn-hdr btn-hdr-outline" onclick="exportCSV()">
+          ↓ Export CSV
+        </button>
+        <button class="btn-hdr btn-hdr-red" onclick="exportPrint()">
+          ⎙ Print Report
+        </button>
       </div>
     </div>
   </div>
 
-  <!-- RIGHT: LIST -->
-  <div class="list-panel">
+  <!-- SUB-HEADER -->
+  <div class="sub-header">
+    <span class="breadcrumb">CE&amp;P <span class="breadcrumb-sep">›</span> <span>Duct Fabrication</span> <span
+        class="breadcrumb-sep">›</span> <span>Material Calculator</span></span>
+  </div>
 
-    <div class="stats-row">
-      <div class="stat-card navy-accent">
-        <div class="stat-label">Items</div>
-        <div class="stat-value" id="stat-items">0</div>
-      </div>
-      <div class="stat-card navy-accent">
-        <div class="stat-label">Total Qty</div>
-        <div class="stat-value" id="stat-qty">0 <span class="stat-unit">nos</span></div>
-      </div>
-      <div class="stat-card accent">
-        <div class="stat-label">Total Area</div>
-        <div class="stat-value" id="stat-area">0.0000 <span class="stat-unit">m²</span></div>
-      </div>
-    </div>
+  <!-- MAIN -->
+  <div class="main">
 
-    <div class="card" style="flex:1;display:flex;flex-direction:column">
-      <div class="card-header">
-        <div class="card-header-left">
-          <div class="card-icon" style="background:var(--red)">
-            <svg viewBox="0 0 24 24"><path d="M9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4zm2 2H5V5h14v14zm0-16H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
-          </div>
-          <span class="card-title">Fabrication List</span>
-        </div>
-        <button class="btn-ghost" onclick="clearAll()">Clear All</button>
-      </div>
-
-      <div class="card-body" style="flex:1;overflow-y:auto;padding-bottom:0">
-        <div id="item-list">
-          <div class="empty-state">
-            <div class="empty-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="#8a97b8"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+    <!-- LEFT: FORM -->
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-7 14H8v-2h4v2zm4-4H8v-2h8v2zm0-4H8V7h8v2z" />
+              </svg>
             </div>
-            <p>No items yet.<br>Select a duct type and add to list.</p>
+            <span class="card-title">Add Duct Item</span>
           </div>
         </div>
-      </div>
+        <div class="card-body">
 
-      <div id="total-bar" class="total-bar" style="display:none">
-        <div>
-          <div class="total-label">Grand Total Surface Area</div>
-          <div class="total-items" id="total-items-label">0 items · 0 nos</div>
+          <div class="field-group">
+            <label class="field-label">Duct Type</label>
+            <select id="duct-type" class="field-input" onchange="onTypeChange()"></select>
+          </div>
+
+          <div id="duct-img-wrap" class="duct-diagram">
+            <div id="duct-3d-canvas-wrap"></div>
+            <img id="duct-static-img" class="y-duct-static" src="duct/y-duct.png" alt="Y-Duct diagram">
+            <div id="duct-static-overlay" class="y-duct-overlay"></div>
+            <button class="expand-3d-btn" type="button" onclick="open3DModal()" title="Expand 3D view"
+              aria-label="Expand 3D view">⤢</button>
+            <span id="duct-type-tag" class="duct-type-tag">—</span>
+            <span class="dim-hint">🖱 Drag to rotate</span>
+          </div>
+
+          <div class="section-divider">
+            <div class="section-divider-line"></div>
+            <span class="section-divider-label">Dimensions (mm)</span>
+            <div class="section-divider-line"></div>
+          </div>
+
+          <div id="dynamic-fields" class="fields-grid"></div>
+
+          <div class="qty-row">
+            <span class="qty-label">Quantity</span>
+            <input type="number" id="qty" class="qty-input" value="1" min="1" oninput="updatePreview()">
+            <span style="font-size:12px;color:var(--text-muted)">nos</span>
+          </div>
+
+          <div id="preview-area" class="preview-box">
+            <div class="preview-muted">Fill dimensions above to preview surface area</div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="addItem()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+              </svg>
+              Add to List
+            </button>
+            <button class="btn btn-secondary" onclick="clearFields()">Clear</button>
+          </div>
+
         </div>
-        <div class="total-value" id="total-area-val">0.0000 <span class="total-m2">m²</span></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: LIST -->
+    <div class="list-panel">
+
+      <div class="stats-row">
+        <div class="stat-card navy-accent">
+          <div class="stat-label">Items</div>
+          <div class="stat-value" id="stat-items">0</div>
+        </div>
+        <div class="stat-card navy-accent">
+          <div class="stat-label">Total Qty</div>
+          <div class="stat-value" id="stat-qty">0 <span class="stat-unit">nos</span></div>
+        </div>
+        <div class="stat-card accent">
+          <div class="stat-label">Total Area</div>
+          <div class="stat-value" id="stat-area">0.0000 <span class="stat-unit">m²</span></div>
+        </div>
       </div>
 
-    </div>
-  </div>
+      <div class="card" style="flex:1;display:flex;flex-direction:column">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-icon" style="background:var(--red)">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4zm2 2H5V5h14v14zm0-16H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" />
+              </svg>
+            </div>
+            <span class="card-title">Fabrication List</span>
+          </div>
+          <button class="btn-ghost" onclick="clearAll()">Clear All</button>
+        </div>
 
-</div>
-<div id="duct-3d-modal" class="duct-3d-modal" onclick="on3DModalBackdrop(event)">
-  <div class="duct-3d-modal-card">
-    <div class="duct-3d-modal-header">
-      <div class="duct-3d-modal-title-wrap">
-        <span class="duct-3d-modal-title">3D Duct Preview</span>
-        <span id="duct-3d-modal-type" class="duct-3d-modal-type">-</span>
+        <div class="card-body" style="flex:1;overflow-y:auto;padding-bottom:0">
+          <div id="item-list">
+            <div class="empty-state">
+              <div class="empty-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="#8a97b8">
+                  <path
+                    d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+                </svg>
+              </div>
+              <p>No items yet.<br>Select a duct type and add to list.</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="total-bar" class="total-bar" style="display:none">
+          <div>
+            <div class="total-label">Grand Total Surface Area</div>
+            <div class="total-items" id="total-items-label">0 items · 0 nos</div>
+          </div>
+          <div class="total-value" id="total-area-val">0.0000 <span class="total-m2">m²</span></div>
+        </div>
+
       </div>
-      <button class="duct-3d-modal-close" type="button" onclick="close3DModal()" aria-label="Close 3D preview">✕</button>
     </div>
-    <div class="duct-3d-modal-body" id="duct-modal-body">
-      <div id="duct-3d-canvas-wrap-modal"></div>
-      <img id="duct-static-img-modal" class="y-duct-static" src="duct/y-duct.png" alt="Y-Duct diagram">
-      <div id="duct-static-overlay-modal" class="y-duct-overlay"></div>
+
+  </div>
+  <div id="duct-3d-modal" class="duct-3d-modal" onclick="on3DModalBackdrop(event)">
+    <div class="duct-3d-modal-card">
+      <div class="duct-3d-modal-header">
+        <div class="duct-3d-modal-title-wrap">
+          <span class="duct-3d-modal-title">3D Duct Preview</span>
+          <span id="duct-3d-modal-type" class="duct-3d-modal-type">-</span>
+        </div>
+        <button class="duct-3d-modal-close" type="button" onclick="close3DModal()"
+          aria-label="Close 3D preview">✕</button>
+      </div>
+      <div class="duct-3d-modal-body" id="duct-modal-body">
+        <div id="duct-3d-canvas-wrap-modal"></div>
+        <img id="duct-static-img-modal" class="y-duct-static" src="duct/y-duct.png" alt="Y-Duct diagram">
+        <div id="duct-static-overlay-modal" class="y-duct-overlay"></div>
+      </div>
     </div>
   </div>
-</div>
-<script src="ducts.js"></script>
-<script src="viewer.js"></script>
-<script src="app.js"></script>
+  <script src="ducts.js"></script>
+  <script src="viewer.js"></script>
+  <script src="app.js"></script>
 </body>
+
 </html>

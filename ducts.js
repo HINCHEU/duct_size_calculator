@@ -26,10 +26,10 @@ const DUCTS = {
   rect_elbow45: {
     label: 'Rectangular Elbow 45°',
     tag: 'Elbow 45°',
-    fields: [{ id: 'A', label: 'Width A' }, { id: 'B', label: 'Height B' }, { id: 'R', label: 'Inner Radius R' }, { id: 'L', label: 'Arm Length L' }],
-    calc: f => `Elbow 45°: ${f.A}×${f.B}×R${f.R}×L${f.L}`,
-    // Perimeter = 2*(A+B)/1000 m, Arc at centerline Rc=(R+A/2), ArcLen = PI/4*Rc/1000, Arms = 2*L/1000
-    area: f => { const a = +f.A, b = +f.B, r = +f.R, l = +f.L; const Rc = r + a / 2; return 2 * (a + b) / 1000 * (Math.PI / 4 * Rc / 1000 + 2 * l / 1000); },
+    fields: [{ id: 'A', label: 'Width A' }, { id: 'B', label: 'Height B' }, { id: 'R', label: 'Inner Radius R' }],
+    calc: f => `Elbow 45°: ${f.A}×${f.B}×R${f.R}`,
+    // Perimeter = 2*(A+B)/1000 m, Arc at centerline Rc=(R+A/2), ArcLen = PI/4*Rc/1000
+    area: f => { const a = +f.A, b = +f.B, r = +f.R; const Rc = r + a / 2; return 2 * (a + b) / 1000 * (Math.PI / 4 * Rc / 1000); },
   },
   round_elbow90: {
     label: 'Round Elbow 90°',
@@ -39,6 +39,14 @@ const DUCTS = {
     // Perimeter = PI*D/1000, Centerline radius Rc = R + D/2
     area: f => { const d = +f.D, r = +f.R; const Rc = r + d / 2; return Math.PI * d / 1000 * (Math.PI / 2 * Rc / 1000); },
   },
+  round_elbow45: {
+    label: 'Round Elbow 45°',
+    tag: 'Round Elbow 45',
+    fields: [{ id: 'D', label: 'Diameter Ø' }, { id: 'R', label: 'Bend Radius R' }],
+    calc: f => `ELBOW45°: ∅${f.D} x R:${f.R}`,
+    // Perimeter = PI*D/1000, Centerline radius Rc = R + D/2
+    area: f => { const d = +f.D, r = +f.R; const Rc = r + d / 2; return Math.PI * d / 1000 * (Math.PI / 4 * Rc / 1000); },
+  },
   duct_reducer: {
     label: 'Duct Reducer (Rect→Rect)',
     tag: 'Reducer',
@@ -46,6 +54,17 @@ const DUCTS = {
     calc: f => `Duct reducer: (${f.A}×${f.B})→(${f.C}×${f.D2})×L${f.L}`,
     // Excel: Perimeter=2*(A+B)/1000 (larger end), EqLen=L/1000*1.2
     area: f => { const a = +f.A, b = +f.B, l = +f.L; return 2 * (a + b) / 1000 * (l / 1000 * 1.2); },
+  },
+  rect_to_round: {
+    label: 'Duct Reducer (Rect→Round)',
+    tag: 'Rect to Round',
+    fields: [{ id: 'A', label: 'Width A' }, { id: 'B', label: 'Height B' }, { id: 'D', label: 'Diameter Ø' }, { id: 'L', label: 'Length L' }],
+    calc: f => `Rectangle to Round : ${f.A}x${f.B} -> Ø${f.D}mmxL${f.L}`,
+    // Half straight rect (L/2) + half transition to round (L/2)
+    area: f => {
+      const pRect = 2 * (+f.A + +f.B), pRound = Math.PI * (+f.D), l = +f.L;
+      return (pRect * (l / 2) + ((pRect + pRound) / 2) * (l / 2)) / 1000000;
+    },
   },
   butterfly_round: {
     label: 'Butterfly Duct (One Side Round)',
@@ -114,10 +133,71 @@ const DUCTS = {
   offset_duct: {
     label: 'Offset Duct',
     tag: 'Offset',
-    fields: [{ id: 'A', label: 'Width A' }, { id: 'B', label: 'Height B' }, { id: 'R', label: 'Offset Drop R' }, { id: 'L', label: 'Total Length L' }],
-    calc: f => `Offset: ${f.A}×${f.B}×R${f.R}×L${f.L}`,
-    // Excel: Perimeter=2*(A+B)/1000, EqLen = L/1000*1.2 + R/1000 (offset drop)
-    area: f => { const a = +f.A, b = +f.B, l = +f.L, r = +f.R; return 2 * (a + b) / 1000 * (l / 1000 * 1.2 + r / 1000); },
+    fields: [{ id: 'A', label: 'Start Width A' }, { id: 'B', label: 'Start Height B' }, { id: 'C', label: 'End Width C' }, { id: 'D2', label: 'End Height D' }, { id: 'R', label: 'Offset Drop R' }, { id: 'L', label: 'Total Length L' }],
+    calc: f => `Offset: (${f.A}×${f.B})→(${f.C}×${f.D2})×R${f.R}×L${f.L}`,
+    // Mathematical area: Top/Bottom are trapezoids with heights approx hypot(L,R). Side walls are trapezoids with height L.
+    // Simplifying to Average Perimeter * effective length hypot(L,R)
+    area: f => {
+      const a = +f.A, b = +f.B, c = +f.C, d2 = +f.D2, l = +f.L, r = +f.R;
+      const avgP = (2 * (a + b) + 2 * (c + d2)) / 2;
+      return avgP * Math.hypot(l, r) / 1000000;
+    },
+  },
+  offset_duct_straight: {
+    label: 'Offset Duct (With Straight Ends)',
+    tag: 'Offset+Straight',
+    fields: [
+      { id: 'A', label: 'Width A' }, 
+      { id: 'B', label: 'Height B' }, 
+      { id: 'R', label: 'Offset Drop R' }, 
+      { id: 'L', label: 'Middle Length L' },
+      { id: 'L1', label: 'Start Straight L1' },
+      { id: 'L2', label: 'End Straight L2' }
+    ],
+    calc: f => `Offset w/ Straight: ${f.A}×${f.B}×R${f.R}×L${f.L} (L1:${f.L1}, L2:${f.L2})`,
+    area: f => { 
+      const a = +f.A, b = +f.B, l = +f.L, r = +f.R, l1 = +f.L1 || 0, l2 = +f.L2 || 0; 
+      const middleL = l - l1 - l2;
+      const p = 2 * (a + b);
+      return (p * l1 + p * l2 + 2 * b * middleL + 2 * a * Math.hypot(middleL, r)) / 1000000; 
+    },
+  },
+  offset_duct_angular: {
+    label: 'Offset Duct (With Angular Ends)',
+    tag: 'Offset+Angular',
+    fields: [
+      { id: 'A', label: 'Width A' }, 
+      { id: 'B', label: 'Height B' }, 
+      { id: 'R', label: 'Offset Drop R' }, 
+      { id: 'L', label: 'Total Length L' },
+      { id: 'Rc', label: 'Curve Radius Rc' },
+      { id: 'A1', label: 'Start Angle (deg)' },
+      { id: 'A2', label: 'End Angle (deg)' }
+    ],
+    calc: f => `Offset w/ Ang: ${f.A}×${f.B}×R${f.R}×L${f.L} (Rc:${f.Rc}, Ang:${f.A1}°,${f.A2}°)`,
+    area: f => { 
+      const a = +f.A || 750, b = +f.B || 300, l = +f.L || 930, H = +f.R || 620; 
+      const ang1 = Math.min(60, Math.max(-60, +f.A1 || 30)) * Math.PI / 180;
+      const ang2 = Math.min(60, Math.max(-60, +f.A2 || 30)) * Math.PI / 180;
+      let Rc = (+f.Rc || 150);
+      const b_half = b / 2;
+      const tan1 = Math.abs(Math.tan(ang1));
+      const tan2 = Math.abs(Math.tan(ang2));
+      const s1 = b_half * tan1 + 20;
+      const s2 = b_half * tan2 + 20;
+      let dx = l - 2 * b_half * (tan1 + tan2) - 40;
+      if (dx < 10) dx = 10;
+      let r = Rc + b_half;
+      const max_r = (dx * dx + H * H) / (4 * H);
+      if (r > max_r) { r = max_r * 0.99; }
+      const dy = H - 2 * r;
+      const D = Math.hypot(dx, dy);
+      const alpha = Math.atan2(dy, dx) + Math.asin(2 * r / D);
+      const tangentL = Math.sqrt(Math.max(0, D * D - 4 * r * r));
+      const centerL = s1 + s2 + 2 * alpha * r + tangentL;
+      const p = 2 * (a + b);
+      return (p * centerL) / 1000000; 
+    },
   },
   y_duct: {
     label: 'Y-Ducting (Branch Takeoff)',
@@ -194,18 +274,67 @@ const DUCTS = {
   plenum_box: {
     label: 'Plenum Box (Side Inlet)',
     tag: 'Plenum Side',
-    fields: [{ id: 'A', label: 'Body Width A' }, { id: 'B', label: 'Body Depth B' }, { id: 'H', label: 'Body Height H' }, { id: 'D', label: 'Connector Ø' }, { id: 'H2', label: 'Connector Height H2' }],
-    calc: f => `Plenum: ${f.A}×${f.B}×H${f.H} Conn:Ø${f.D}×H${f.H2}`,
-    // Excel: box surface = (2*A*B + 2*A*H + 2*B*H)/1e6 + PI*D*H2/1e6
-    area: f => { const a = +f.A, b = +f.B, h = +f.H, d = +f.D, h2 = +f.H2; return (2 * a * b + 2 * a * h + 2 * b * h) / 1e6 + Math.PI * d * h2 / 1e6; },
+    fields: [
+      { id: 'A', label: 'Body Width A' }, { id: 'B', label: 'Body Depth B' }, { id: 'H2', label: 'Body Height H2' },
+      { id: 'C', label: 'Neck Width C' }, { id: 'D', label: 'Neck Depth D' }, { id: 'H1', label: 'Neck Height H1' },
+      { id: 'D2', label: 'Connector Ø' }, { id: 'H3', label: 'Connector Height H3' },
+      { id: 'F', label: 'Bottom Flange F' }
+    ],
+    calc: f => `Plenum Box: ${f.A}×${f.B}×H${f.H2} Neck:${f.C}×${f.D}×H${f.H1} Conn:Ø${f.D2}×H${f.H3}`,
+    area: f => {
+      const a = +f.A, b = +f.B, h1 = +f.H1, c = +f.C, d = +f.D, h2 = +f.H2, d2 = +f.D2, h3 = +f.H3, fl = +f.F || 0;
+      const bodyTotal = 2*(a*h2 + a*b + b*h2) - Math.PI*Math.pow(d2/2, 2) - c*d;
+      const neckTotal = 2*(c+d)*h1;
+      const connTotal = Math.PI * d2 * h3;
+      const flangeTotal = fl > 0 ? 2*(c*fl + d*fl - 2*fl*fl) : 0;
+      return (bodyTotal + neckTotal + connTotal + flangeTotal) / 1000000;
+    },
   },
   plenum_top: {
-    label: 'Plenum Box (Top Connector)',
+    label: 'Plenum Box (Top Inlet)',
     tag: 'Plenum Top',
-    fields: [{ id: 'A', label: 'Body Width A' }, { id: 'B', label: 'Body Depth B' }, { id: 'H', label: 'Body Height H' }, { id: 'D', label: 'Connector Ø' }, { id: 'H2', label: 'Connector Height H2' }],
-    calc: f => `Plenum top: ${f.A}×${f.B}×H${f.H} Conn:Ø${f.D}×H${f.H2}`,
-    // Excel: box surface = (2*A*B + 2*A*H + 2*B*H)/1e6 + PI*D*H2/1e6
-    area: f => { const a = +f.A, b = +f.B, h = +f.H, d = +f.D, h2 = +f.H2; return (2 * a * b + 2 * a * h + 2 * b * h) / 1e6 + Math.PI * d * h2 / 1e6; },
+    fields: [
+      { id: 'A', label: 'Body Width A' }, { id: 'B', label: 'Body Depth B' }, { id: 'H1', label: 'Body Height H1' },
+      { id: 'D', label: 'Connector Ø' }, { id: 'H2', label: 'Connector Height H2' },
+      { id: 'F', label: 'Flange Width F' }
+    ],
+    calc: f => `Plenum Top: ${f.A}×${f.B}×H${f.H1} Conn:Ø${f.D}×H${f.H2} Flange:${f.F}`,
+    area: f => {
+      const a = +f.A, b = +f.B, h1 = +f.H1, d = +f.D, h2 = +f.H2, fl = +f.F || 20;
+      const bodyTotal = (a*b) + 2*(a*h1) + 2*(b*h1) - Math.PI*Math.pow(d/2, 2);
+      const flangeTotal = 2*(a*fl + b*fl - 2*fl*fl); // A*B - (A-2F)*(B-2F) = 2AF + 2BF - 4F^2. Multiply by 2 for both sides = 4AF + 4BF - 8F^2
+      return (bodyTotal + Math.PI*d*h2 + flangeTotal) / 1000000;
+    },
+  },
+  plenum_tapered: {
+    label: 'Plenum Box (Oval Top Inlet)',
+    tag: 'Plenum Tapered',
+    fields: [
+      { id: 'A', label: 'Body Width A' }, { id: 'B1', label: 'Top Depth B1' }, { id: 'B2', label: 'Bottom Depth B2' },
+      { id: 'H1', label: 'Body Height H1' }, { id: 'H2', label: 'Neck Height H2' },
+      { id: 'F', label: 'Bottom Flange F' },
+      { id: 'CW', label: 'Connector Oval Width' }, { id: 'CD', label: 'Connector Oval Depth' }, { id: 'CH', label: 'Connector Height' }
+    ],
+    calc: f => `Plenum Taper: ${f.A}×${f.B1}/${f.B2}×H${f.H1} Neck:H${f.H2} Conn:Oval ${f.CW}×${f.CD}`,
+    area: f => {
+      const a = +f.A, b1 = +f.B1, b2 = +f.B2, h1 = +f.H1, h2 = +f.H2, fl = +f.F || 20;
+      const cw = +f.CW, cd = +f.CD, ch = +f.CH;
+      
+      const ovalArea = Math.max(0, cw - cd) * cd + Math.PI * Math.pow(cd/2, 2);
+      const ovalPerim = 2 * Math.max(0, cw - cd) + Math.PI * cd;
+      
+      const topFace = (a * b1) - ovalArea;
+      const frontBackSlope = Math.sqrt(Math.pow(h1, 2) + Math.pow(b1 - b2, 2));
+      const frontBack = a * frontBackSlope + a * h1; // Assumes flat back
+      const leftRight = 2 * ((b1 + b2)/2 * h1);
+      
+      const neckArea = 2 * (a + b2) * h2;
+      const flangeArea = 2*(a*fl + b2*fl - 2*fl*fl);
+      
+      const connectorArea = ovalPerim * ch;
+      
+      return (topFace + frontBack + leftRight + neckArea + flangeArea + connectorArea) / 1000000;
+    },
   },
   canvas_round: {
     label: 'Canvas Connection (Round)',
@@ -227,30 +356,30 @@ const DUCTS = {
     label: 'Fan Connection',
     tag: 'Fan Conn',
     fields: [
-      { id: 'A',  label: 'Inlet Width A'    },
-      { id: 'B',  label: 'Inlet Height B'   },
-      { id: 'C',  label: 'Outlet Width C'   },
-      { id: 'D2', label: 'Outlet Height D'  },
-      { id: 'L',  label: 'Total Length L'   },
-      { id: 'F1', label: 'Top Flange F1'    },
-      { id: 'S',  label: 'Top Step S'       },
+      { id: 'A', label: 'Inlet Width A' },
+      { id: 'B', label: 'Inlet Height B' },
+      { id: 'C', label: 'Outlet Width C' },
+      { id: 'D2', label: 'Outlet Height D' },
+      { id: 'L', label: 'Total Length L' },
+      { id: 'F1', label: 'Top Flange F1' },
+      { id: 'S', label: 'Top Step S' },
       { id: 'L1', label: 'Inlet Section L1' },
-      { id: 'L2', label: 'Body Section L2'  },
+      { id: 'L2', label: 'Body Section L2' },
       { id: 'Fb', label: 'Bottom Flange Fb' },
-      { id: 'Fi', label: 'Center Gap Fi'    },
+      { id: 'Fi', label: 'Center Gap Fi' },
     ],
     calc: f => `Fan conn: ${f.A}×${f.B} → ${f.C}×${f.D2} × L${f.L}`,
     area: f => {
-      const a=+f.A, b=+f.B, c=+f.C, d=+f.D2, l=+f.L;
-      const f1=+f.F1, s=+f.S, l1=+f.L1, l2=+f.L2, fb=+f.Fb, fi=+f.Fi;
-      if (!a||!b||!c||!d||!l||!l2) return 0;
-      const slantW = Math.sqrt(l2*l2 + ((a-c)/2)**2);
-      const slantH = Math.sqrt(l2*l2 + s*s);
-      const topBot     = (a+c)/2 * slantW / 1e6 * 2;
-      const sides      = (b+d)/2 * slantH / 1e6 * 2;
-      const inletSect  = 2*(a+b)/1000 * (l1/1000);
-      const outFlange  = 2*(c+d)/1000 * (fb/1000);
-      const stripF1    = (c*2+d*2) * f1 / 1e6;
+      const a = +f.A, b = +f.B, c = +f.C, d = +f.D2, l = +f.L;
+      const f1 = +f.F1, s = +f.S, l1 = +f.L1, l2 = +f.L2, fb = +f.Fb, fi = +f.Fi;
+      if (!a || !b || !c || !d || !l || !l2) return 0;
+      const slantW = Math.sqrt(l2 * l2 + ((a - c) / 2) ** 2);
+      const slantH = Math.sqrt(l2 * l2 + s * s);
+      const topBot = (a + c) / 2 * slantW / 1e6 * 2;
+      const sides = (b + d) / 2 * slantH / 1e6 * 2;
+      const inletSect = 2 * (a + b) / 1000 * (l1 / 1000);
+      const outFlange = 2 * (c + d) / 1000 * (fb / 1000);
+      const stripF1 = (c * 2 + d * 2) * f1 / 1e6;
       return topBot + sides + inletSect + outFlange + stripF1;
     },
   },
