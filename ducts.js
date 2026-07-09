@@ -18,26 +18,26 @@ const DUCTS = {
   rect_elbow90: {
     label: 'Rectangular Elbow 90°',
     tag: 'Elbow 90°',
-    fields: [{ id: 'A', label: 'Width A' }, { id: 'B', label: 'Height B' }, { id: 'R', label: 'Inner Radius R' }, { id: 'L', label: 'Arm Length L' }],
-    calc: f => `Elbow 90°: ${f.A}×${f.B}×R${f.R}×L${f.L}`,
-    // Excel: Perimeter=2*(A+B)/1000, EqLen = R/1000*1.2 + L/1000 (R=inner radius, L=straight arm)
-    area: f => { const a = +f.A, b = +f.B, r = +f.R, l = +f.L; return 2 * (a + b) / 1000 * (r / 1000 * 1.2 + l / 1000); },
+    fields: [{ id: 'A', label: 'Width A' }, { id: 'B', label: 'Height B' }, { id: 'R', label: 'Inner Radius R' }],
+    calc: f => `Elbow 90°: ${f.A}×${f.B}×R${f.R}`,
+    // Perimeter = 2*(A+B)/1000 m, Arc at centerline Rc=(R+A/2), ArcLen = PI/2*Rc/1000
+    area: f => { const a = +f.A, b = +f.B, r = +f.R; const Rc = r + a / 2; return 2 * (a + b) / 1000 * (Math.PI / 2 * Rc / 1000); },
   },
   rect_elbow45: {
     label: 'Rectangular Elbow 45°',
     tag: 'Elbow 45°',
     fields: [{ id: 'A', label: 'Width A' }, { id: 'B', label: 'Height B' }, { id: 'R', label: 'Inner Radius R' }, { id: 'L', label: 'Arm Length L' }],
     calc: f => `Elbow 45°: ${f.A}×${f.B}×R${f.R}×L${f.L}`,
-    // Excel: Perimeter=2*(A+B)/1000, EqLen = R/1000*1.2 + L/1000 (R=inner radius, L=straight arm)
-    area: f => { const a = +f.A, b = +f.B, r = +f.R, l = +f.L; return 2 * (a + b) / 1000 * (r / 1000 * 1.2 + l / 1000); },
+    // Perimeter = 2*(A+B)/1000 m, Arc at centerline Rc=(R+A/2), ArcLen = PI/4*Rc/1000, Arms = 2*L/1000
+    area: f => { const a = +f.A, b = +f.B, r = +f.R, l = +f.L; const Rc = r + a / 2; return 2 * (a + b) / 1000 * (Math.PI / 4 * Rc / 1000 + 2 * l / 1000); },
   },
   round_elbow90: {
     label: 'Round Elbow 90°',
     tag: 'Round Elbow',
-    fields: [{ id: 'D', label: 'Diameter Ø' }, { id: 'R', label: 'Bend Radius R' }, { id: 'L', label: 'Arm Length L' }],
-    calc: f => `Round elbow 90°: Ø${f.D}×R${f.R}×L${f.L}`,
-    // Excel: Perimeter=PI*D/1000, EqLen = R/1000*1.2 + L/1000
-    area: f => { const d = +f.D, r = +f.R, l = +f.L; return Math.PI * d / 1000 * (r / 1000 * 1.2 + l / 1000); },
+    fields: [{ id: 'D', label: 'Diameter Ø' }, { id: 'R', label: 'Bend Radius R' }],
+    calc: f => `ELBOW90°: ∅${f.D} x R:${f.R}`,
+    // Perimeter = PI*D/1000, Centerline radius Rc = R + D/2
+    area: f => { const d = +f.D, r = +f.R; const Rc = r + d / 2; return Math.PI * d / 1000 * (Math.PI / 2 * Rc / 1000); },
   },
   duct_reducer: {
     label: 'Duct Reducer (Rect→Rect)',

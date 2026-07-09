@@ -139,6 +139,7 @@ function _w2s(wp, camera, pivot, W, H) {
 function _mats() {
   return {
     galv: new THREE.MeshPhongMaterial({ color: 0xbacedd, specular: 0x99aabb, shininess: 55, side: THREE.DoubleSide }),
+    shinyGalv: new THREE.MeshPhongMaterial({ color: 0xc8d8ea, specular: 0xffffff, shininess: 120, side: THREE.DoubleSide }),
     inner: new THREE.MeshPhongMaterial({ color: 0x8898aa, specular: 0x667788, shininess: 30, side: THREE.DoubleSide }),
     flange: new THREE.MeshPhongMaterial({ color: 0x1a2a3a, specular: 0x334455, shininess: 50, side: THREE.DoubleSide }),
     edge: new THREE.LineBasicMaterial({ color: 0x1a3050 }),
@@ -571,54 +572,96 @@ function build3DDuct(key, f) {
       ]; _fitCam(L, R * 2, R * 2); break;
     }
     case 'rect_elbow90': {
-      const W = (+f.A || 300) * S, H = (+f.B || 250) * S, RL = (+f.R || 150) * S, L = (+f.L || 300) * S, T = Math.min(W, H) * 0.09;
-      const SEGS = 32;
+      // A=duct width, B=duct height, R=inner radius — no user L, use fixed visual stub
+      const W = (+f.A || 300) * S, H = (+f.B || 250) * S, RL = (+f.R || 150) * S;
+      const L = W * 0.7;                          // fixed stub arm for visual only
+      const TW = Math.min(W, H) * 0.07;           // wall thickness for end rings
+      const SEGS = 32, AS = 8;
       const Ri = RL, Ro = RL + W, Rc = RL + W / 2;
-      function sweepWall(r, matl, flip) {
-        const verts = [], idx = [];
+
+      // Path: arm1 (-X at z=-r) + 90° arc + arm2 (+Z at x=r)
+      function makePath(r) {
+        const pts = [];
+        for (let i = AS; i > 0; i--) pts.push([-L * i / AS, -r]);
         for (let i = 0; i <= SEGS; i++) {
-          const a = i / SEGS * (Math.PI / 2);
-          verts.push(r * Math.sin(a), -H / 2, -r * Math.cos(a),
-            r * Math.sin(a), H / 2, -r * Math.cos(a));
+          const a = i / SEGS * Math.PI / 2;
+          pts.push([r * Math.sin(a), -r * Math.cos(a)]);
         }
-        for (let i = 0; i < SEGS; i++) {
+        for (let i = 1; i <= AS; i++) pts.push([r, L * i / AS]);
+        return pts;
+      }
+
+      // Side wall panel: path at radius r, extruded between y0 and y1
+      function sideWall(r, y0, y1, mat, flip) {
+        const pts = makePath(r), N = pts.length;
+        const verts = new Float32Array(N * 6);
+        for (let i = 0; i < N; i++) {
+          const [px, pz] = pts[i];
+          verts[i*6+0]=px; verts[i*6+1]=y0; verts[i*6+2]=pz;
+          verts[i*6+3]=px; verts[i*6+4]=y1; verts[i*6+5]=pz;
+        }
+        const idx = [];
+        for (let i = 0; i < N-1; i++) {
           const b = i * 2;
-          if (flip) idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
-          else idx.push(b, b + 2, b + 1, b + 1, b + 2, b + 3);
+          if (flip) idx.push(b,b+1,b+2, b+1,b+3,b+2);
+          else      idx.push(b,b+2,b+1, b+1,b+2,b+3);
         }
         const g = new THREE.BufferGeometry();
-        g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
-        g.setIndex(idx); g.computeVertexNormals(); _mesh(pivot, g, matl);
+        g.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+        g.setIndex(idx); g.computeVertexNormals();
+        _mesh(pivot, g, mat);
+        pivot.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 30), m.edge));
       }
-      function sweepCap(y, flip) {
-        const verts = [], idx = [];
-        for (let i = 0; i <= SEGS; i++) {
-          const a = i / SEGS * (Math.PI / 2), ca = Math.cos(a), sa = Math.sin(a);
-          verts.push(Ri * sa, y, -Ri * ca, Ro * sa, y, -Ro * ca);
+
+      // Horizontal cap panel at y, annular strip connecting Ro↔Ri
+      function capPanel(y, flip) {
+        const outer = makePath(Ro), inner = makePath(Ri), N = outer.length;
+        const verts = new Float32Array(N * 6);
+        for (let i = 0; i < N; i++) {
+          verts[i*6+0]=outer[i][0]; verts[i*6+1]=y; verts[i*6+2]=outer[i][1];
+          verts[i*6+3]=inner[i][0]; verts[i*6+4]=y; verts[i*6+5]=inner[i][1];
         }
-        for (let i = 0; i < SEGS; i++) {
+        const idx = [];
+        for (let i = 0; i < N-1; i++) {
           const b = i * 2;
-          if (flip) idx.push(b, b + 2, b + 1, b + 1, b + 2, b + 3);
-          else idx.push(b, b + 1, b + 3, b, b + 3, b + 2);
+          if (flip) idx.push(b,b+2,b+1, b+1,b+2,b+3);
+          else      idx.push(b,b+1,b+3, b,b+3,b+2);
         }
         const g = new THREE.BufferGeometry();
-        g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
-        g.setIndex(idx); g.computeVertexNormals(); _mesh(pivot, g, m.galv);
+        g.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+        g.setIndex(idx); g.computeVertexNormals();
+        _mesh(pivot, g, m.galv);
+        pivot.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 30), m.edge));
       }
-      sweepWall(Ro, m.galv, false);
-      sweepWall(Ri, m.inner, true);
-      sweepCap(H / 2, false);
-      sweepCap(-H / 2, true);
-      const arm1 = new THREE.Group(); _hollowRect(arm1, L, W, H, T); arm1.position.set(-L / 2, 0, -Rc); pivot.add(arm1);
-      const arm2 = new THREE.Group(); _hollowRect(arm2, L, W, H, T);
-      arm2.rotation.y = -Math.PI / 2;
-      arm2.position.set(Rc, 0, L / 2); pivot.add(arm2);
+
+      // 4 seamless continuous sheet-metal panels
+      sideWall(Ro, -H/2, H/2, m.galv, false);   // outer curved wall
+      sideWall(Ri, -H/2, H/2, m.inner, true);   // inner curved wall (dark)
+      capPanel( H/2, false);                      // top cap
+      capPanel(-H/2, true);                       // bottom cap
+
+      // Hollow open ends — thin wall-thickness ring frames (no solid caps)
+      // Inlet end at x=-L, z=-Rc (opening perpendicular to X axis)
+      _box(pivot, TW, TW, W, m.galv, m.edge, [-L,  H/2 - TW/2, -Rc]);       // top bar
+      _box(pivot, TW, TW, W, m.galv, m.edge, [-L, -H/2 + TW/2, -Rc]);       // bottom bar
+      _box(pivot, TW, H-TW*2, TW, m.galv, m.edge, [-L, 0, -Ri - TW/2]);     // inner side
+      _box(pivot, TW, H-TW*2, TW, m.galv, m.edge, [-L, 0, -Ro + TW/2]);     // outer side
+      // Outlet end at x=Rc, z=L (opening perpendicular to Z axis)
+      _box(pivot, W, TW, TW, m.galv, m.edge, [Rc,  H/2 - TW/2, L]);         // top bar
+      _box(pivot, W, TW, TW, m.galv, m.edge, [Rc, -H/2 + TW/2, L]);         // bottom bar
+      _box(pivot, TW, H-TW*2, TW, m.galv, m.edge, [Ri + TW/2, 0, L]);       // inner side
+      _box(pivot, TW, H-TW*2, TW, m.galv, m.edge, [Ro - TW/2, 0, L]);       // outer side
+
+      // Center pivot
+      const ox = (Ro - L) / 2, oz = -(Ro - L) / 2;
+      pivot.children.forEach(c => { c.position.x -= ox; c.position.z -= oz; });
+
       _3d.dimLines = [
-        { p1: _v3(-L, H / 2 + 0.10, -Rc), p2: _v3(0, H / 2 + 0.10, -Rc), text: f.L ? `${f.L} mm` : 'L' },
-        { p1: _v3(-L / 2 - 0.12, -H / 2, -Rc), p2: _v3(-L / 2 - 0.12, H / 2, -Rc), text: f.B ? `${f.B} mm` : 'B' },
-        { p1: _v3(0, H / 2 + 0.12, -Ri), p2: _v3(0, H / 2 + 0.12, -Ro), text: f.R ? `R ${f.R} mm` : 'R', color: '#D72B2B' },
-        { p1: _v3(0, H / 2 + 0.08, -Ro), p2: _v3(Ro, H / 2 + 0.08, -Ro), text: f.A ? `${f.A} mm` : 'A' },
+        { p1: _v3(-ox - 0.12, -H/2, -Rc - oz), p2: _v3(-ox - 0.12, H/2, -Rc - oz), text: f.B ? `${f.B} mm` : 'B' },
+        { p1: _v3(-ox, H/2+0.12, -Ri - oz),    p2: _v3(-ox, H/2+0.12, -Ro - oz),   text: f.A ? `A ${f.A}` : 'A' },
+        { p1: _v3(-ox, H/2+0.09, -oz),         p2: _v3(-ox, H/2+0.09, -Ri - oz),   text: f.R ? `R ${f.R}` : 'R', color: '#D72B2B' },
       ];
+      _3d.setRot(0.42, 0.55);
       _fitCam(L + Ro, H, L + Ro); break;
     }
     case 'rect_elbow45': {
@@ -633,26 +676,31 @@ function build3DDuct(key, f) {
       ]; _fitCam(L * 1.5, B, L); break;
     }
     case 'round_elbow90': {
-      const R = (+f.D || 250) / 2 * S, bend = (+f.R || 300) * S, L = (+f.L || 250) * S;
-      const tg = new THREE.TorusGeometry(bend, R, 16, 32, Math.PI / 2);
-      tg.rotateZ(-Math.PI / 2);
-      tg.rotateX(Math.PI / 2);
-      _mesh(pivot, tg, m.galv);
-      const ag = new THREE.CylinderGeometry(R, R, L, 32, 1, true);
-      ag.rotateZ(Math.PI / 2);
-      const am = new THREE.Mesh(ag, m.galv);
-      am.position.set(-L / 2, 0, -bend);
-      pivot.add(am);
-      const ag2 = new THREE.CylinderGeometry(R, R, L, 32, 1, true);
-      ag2.rotateX(Math.PI / 2);
-      const am2 = new THREE.Mesh(ag2, m.galv);
-      am2.position.set(bend, 0, L / 2);
-      pivot.add(am2);
+      // D=pipe diameter, R=inner radius
+      const R = (+f.D || 250) / 2 * S;
+      const Ri = (+f.R || 300) * S;
+      const Rc = Ri + R;               // Centerline radius
+      const TW = R * 0.08;             // pipe wall thickness for end rings
+
+      // 90° torus arc (the bend)
+      const tg = new THREE.TorusGeometry(Rc, R, 32, 64, Math.PI / 2);
+      tg.rotateZ(-Math.PI / 2); tg.rotateX(Math.PI / 2);
+      _mesh(pivot, tg, m.shinyGalv || m.galv);
+
+      // Open end rings — thin torus at each end to show wall thickness
+      const ringGeo1 = new THREE.TorusGeometry(R - TW / 2, TW / 2, 16, 48);
+      ringGeo1.rotateY(Math.PI / 2);
+      const ring1 = new THREE.Mesh(ringGeo1, m.flange); ring1.position.set(0, 0, -Rc); pivot.add(ring1);
+
+      const ringGeo2 = new THREE.TorusGeometry(R - TW / 2, TW / 2, 16, 48);
+      const ring2 = new THREE.Mesh(ringGeo2, m.flange); ring2.position.set(Rc, 0, 0); pivot.add(ring2);
+
       _3d.dimLines = [
-        { p1: _v3(-L, -R - 0.05, -bend), p2: _v3(0, -R - 0.05, -bend), text: f.L ? `${f.L} mm` : 'L' },
-        { p1: _v3(0, -R, -bend - 0.1), p2: _v3(0, R, -bend - 0.1), text: f.D ? `Ø${f.D} mm` : 'D', color: '#D72B2B' },
-        { p1: _v3(0, R + 0.1, -bend), p2: _v3(bend, R + 0.1, -bend), text: f.R ? `R ${f.R} mm` : 'R', color: '#D72B2B' },
-      ]; _fitCam(L + bend, R * 2 + bend, R * 2); break;
+        { p1: _v3(0, -R - 0.06, -Rc - 0.08), p2: _v3(0, R + 0.06, -Rc - 0.08), text: f.D ? `Ø${f.D} mm` : 'D', color: '#D72B2B' },
+        { p1: _v3(0, R + 0.1, -Rc),  p2: _v3(Ri, R + 0.1, -Rc), text: f.R ? `R ${f.R} mm` : 'R', color: '#D72B2B' },
+      ];
+      _3d.setRot(0.40, 0.60);
+      _fitCam(Rc * 1.5, R * 2 + Rc, R * 2); break;
     }
     case 'duct_reducer': case 'reducer_duct': case 'collar_duct': {
       const W1 = (+f.A || 500) * S, H1 = (+f.B || 400) * S, W2 = (+f.C || 300) * S, H2 = (+(f.D2 || f.D || 250)) * S, L = (+f.L || 500) * S;
