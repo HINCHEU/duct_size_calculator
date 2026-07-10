@@ -1413,20 +1413,19 @@ function build3DDuct(key, f) {
       _fitCam(A + 40*S, H1 + H2, B + 40*S); break;
     }
     case 'plenum_tapered': {
-      const A = (+f.A || 1005) * S, B1 = (+f.B1 || 140) * S, B2 = (+f.B2 || 100) * S;
-      const H1 = (+f.H1 || 300) * S, H2 = (+f.H2 || 30) * S;
+      const A = (+f.A || 1005) * S, B = (+f.B || 140) * S, H1 = (+f.H1 || 300) * S;
+      const C = (+f.C || A/S) * S, D = (+f.D || 100) * S, H2 = (+f.H2 || 30) * S;
       const CW = (+f.CW || 300) * S, CD = (+f.CD || 100) * S, CH = (+f.CH || 50) * S;
-      const ext = (+f.F || 20) * S;
-      const T = Math.min(A, B1, H1) * 0.02; // thickness
+      const ext = (+f.F || 0) * S;
+      const T = Math.min(A, B, H1) * 0.02;
 
       const hw = Math.max(0, CW - CD) / 2;
       const r = CD / 2;
-      const zNeck = -B1/2 + B2/2; // neck centered such that back face is flat
 
       // Top Face with Oval Hole
       const topBody = new THREE.Shape();
-      topBody.moveTo(-A/2, -B1/2); topBody.lineTo(A/2, -B1/2);
-      topBody.lineTo(A/2, B1/2); topBody.lineTo(-A/2, B1/2);
+      topBody.moveTo(-A/2, -B/2); topBody.lineTo(A/2, -B/2);
+      topBody.lineTo(A/2, B/2); topBody.lineTo(-A/2, B/2);
       
       const topHole = new THREE.Path();
       topHole.absarc(-hw, 0, r, -Math.PI/2, Math.PI/2, true);
@@ -1438,45 +1437,44 @@ function build3DDuct(key, f) {
       topBodyGeom.translate(0, H1/2, 0);
       _mesh(pivot, topBodyGeom, m.galv); _edge(pivot, topBodyGeom, m.edge);
 
-      // Side Faces (Tapered Body)
-      function addQuad(p1, p2, p3, p4, mat) {
-        const geom = new THREE.BufferGeometry();
-        const verts = new Float32Array([...p1, ...p2, ...p3, ...p1, ...p3, ...p4]);
-        geom.setAttribute('position', new THREE.BufferAttribute(verts, 3));
-        geom.computeVertexNormals();
-        _mesh(pivot, geom, mat);
-        const edgeGeom = new THREE.BufferGeometry();
-        edgeGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array([...p1, ...p2, ...p2, ...p3, ...p3, ...p4, ...p4, ...p1]), 3));
-        pivot.add(new THREE.LineSegments(edgeGeom, m.edge));
-      }
+      // Bottom Face with Rectangular Hole
+      const botBody = new THREE.Shape();
+      botBody.moveTo(-A/2, -B/2); botBody.lineTo(A/2, -B/2);
+      botBody.lineTo(A/2, B/2); botBody.lineTo(-A/2, B/2);
       
-      const yT = H1/2, yB = -H1/2;
-      const xA = A/2, zT_f = B1/2, zB_f = -B1/2 + B2; // front Z coordinates
-      const z_b = -B1/2; // flat back Z coordinate
+      const botHole = new THREE.Path();
+      botHole.moveTo(-C/2, -D/2); botHole.lineTo(-C/2, D/2);
+      botHole.lineTo(C/2, D/2); botHole.lineTo(C/2, -D/2);
+      botBody.holes.push(botHole);
       
-      const ptFL = [-xA, yT, zT_f], ptFR = [xA, yT, zT_f], ptBL = [-xA, yT, z_b], ptBR = [xA, yT, z_b];
-      const pbFL = [-xA, yB, zB_f], pbFR = [xA, yB, zB_f], pbBL = [-xA, yB, z_b], pbBR = [xA, yB, z_b];
-      
-      addQuad(ptFL, pbFL, pbFR, ptFR, m.galv); // Front (sloped)
-      addQuad(ptBR, pbBR, pbBL, ptBL, m.galv); // Back (flat vertical)
-      addQuad(ptBL, pbBL, pbFL, ptFL, m.galv); // Left
-      addQuad(ptFR, pbFR, pbBR, ptBR, m.galv); // Right
+      const botBodyGeom = new THREE.ShapeGeometry(botBody);
+      botBodyGeom.rotateX(Math.PI/2); 
+      botBodyGeom.translate(0, -H1/2, 0);
+      _mesh(pivot, botBodyGeom, m.galv); _edge(pivot, botBodyGeom, m.edge);
 
-      // Neck (Bottom)
-      const neck = new THREE.Group();
-      _hollowRect(neck, H2, B2, A, T); 
-      neck.rotation.z = Math.PI/2;
-      neck.position.set(0, -H1/2 - H2/2, zNeck);
+      // Solid Faces (4 walls of body)
+      const backGeom = new THREE.PlaneGeometry(A, H1); backGeom.rotateY(Math.PI); backGeom.translate(0, 0, -B/2);
+      _mesh(pivot, backGeom, m.galv); _edge(pivot, backGeom, m.edge);
+      const frontGeom = new THREE.PlaneGeometry(A, H1); frontGeom.translate(0, 0, B/2);
+      _mesh(pivot, frontGeom, m.galv); _edge(pivot, frontGeom, m.edge);
+      const leftGeom = new THREE.PlaneGeometry(B, H1); leftGeom.rotateY(-Math.PI/2); leftGeom.translate(-A/2, 0, 0);
+      _mesh(pivot, leftGeom, m.galv); _edge(pivot, leftGeom, m.edge);
+      const rightGeom = new THREE.PlaneGeometry(B, H1); rightGeom.rotateY(Math.PI/2); rightGeom.translate(A/2, 0, 0);
+      _mesh(pivot, rightGeom, m.galv); _edge(pivot, rightGeom, m.edge);
+
+      // Rectangular Neck (Bottom)
+      const neck = new THREE.Group(); _hollowRect(neck, H2, D, C, T);
+      neck.rotation.z = Math.PI/2; neck.position.set(0, -H1/2 - H2/2, 0);
       pivot.add(neck);
 
       // Bottom Flange of Neck (extending INWARDS)
-      const tF = T; // match neck thickness
-      const yF = -H1/2 - H2 - tF/2; // placed perfectly below the neck
-      const flange = new THREE.Group(); 
-      _hollowRect(flange, tF, B2, A, ext);
-      flange.rotation.z = Math.PI/2; 
-      flange.position.set(0, yF, zNeck);
-      pivot.add(flange);
+      if (ext > 0) {
+        const flange = new THREE.Group(); 
+        _hollowRect(flange, T, D, C, ext);
+        flange.rotation.z = Math.PI/2; 
+        flange.position.set(0, -H1/2 - H2 - T/2, 0);
+        pivot.add(flange);
+      }
 
       // Oval Connector (Top)
       const ovalShape = new THREE.Shape();
@@ -1493,20 +1491,28 @@ function build3DDuct(key, f) {
       ovalGeom.translate(0, H1/2 + CH, 0);
       _mesh(pivot, ovalGeom, m.galv); _edge(pivot, ovalGeom, m.edge);
 
+      const step = (B - D)/2;
+
       _3d.dimLines = [
-        { p1: _v3(-A/2, H1/2 + 0.12, zT_f + 0.1), p2: _v3(A/2, H1/2 + 0.12, zT_f + 0.1), text: f.A ? `A ${f.A} mm` : 'A' },
-        { p1: _v3(-A/2 - 0.14, H1/2, z_b), p2: _v3(-A/2 - 0.14, H1/2, zT_f), text: f.B1 ? `B1 ${f.B1} mm` : 'B1' },
-        { p1: _v3(-A/2 - 0.14, -H1/2, z_b), p2: _v3(-A/2 - 0.14, -H1/2, zB_f), text: f.B2 ? `B2 ${f.B2} mm` : 'B2' },
+        { p1: _v3(-A/2, H1/2 + 0.12, 0), p2: _v3(A/2, H1/2 + 0.12, 0), text: f.A ? `A ${f.A} mm` : 'A' },
         { p1: _v3(A/2 + 0.14, -H1/2, 0), p2: _v3(A/2 + 0.14, H1/2, 0), text: f.H1 ? `H1 ${f.H1} mm` : 'H1' },
-        { p1: _v3(A/2 + 0.14, -H1/2 - H2, zNeck), p2: _v3(A/2 + 0.14, -H1/2, zNeck), text: f.H2 ? `H2 ${f.H2} mm` : 'H2' },
+        { p1: _v3(-A/2 - 0.14, H1/2, -B/2), p2: _v3(-A/2 - 0.14, H1/2, B/2), text: f.B ? `B ${f.B} mm` : 'B' },
+        
+        { p1: _v3(-C/2, -H1/2 - H2 - 0.12, D/2), p2: _v3(C/2, -H1/2 - H2 - 0.12, D/2), text: f.C ? `C ${f.C} mm` : 'C' },
+        { p1: _v3(C/2 + 0.14, -H1/2 - H2, D/2), p2: _v3(C/2 + 0.14, -H1/2, D/2), text: f.H2 ? `H2 ${f.H2} mm` : 'H2' },
+        { p1: _v3(-C/2 - 0.14, -H1/2 - H2, -D/2), p2: _v3(-C/2 - 0.14, -H1/2 - H2, D/2), text: f.D ? `D ${f.D} mm` : 'D' },
         
         { p1: _v3(-CW/2, H1/2 + CH + 0.08, 0), p2: _v3(CW/2, H1/2 + CH + 0.08, 0), text: f.CW ? `CW ${f.CW} mm` : 'CW' },
         { p1: _v3(0, H1/2 + CH + 0.08, -CD/2), p2: _v3(0, H1/2 + CH + 0.08, CD/2), text: f.CD ? `CD ${f.CD} mm` : 'CD' },
-        { p1: _v3(CW/2 + 0.08, H1/2, 0), p2: _v3(CW/2 + 0.08, H1/2 + CH, 0), text: f.CH ? `CH ${f.CH} mm` : 'CH' },
-        
-        { p1: _v3(A/2, yF, zNeck + B2/2 + 0.1), p2: _v3(A/2 - ext, yF, zNeck + B2/2 + 0.1), text: f.F ? `F ${f.F} mm` : 'F 20 mm', color: '#D72B2B' }
+        { p1: _v3(CW/2 + 0.08, H1/2, 0), p2: _v3(CW/2 + 0.08, H1/2 + CH, 0), text: f.CH ? `CH ${f.CH} mm` : 'CH' }
       ];
-      _fitCam(A + 40*S, H1 + H2 + CH, B1 + 40*S); break;
+      if (Math.abs(step) > 0.01) {
+        _3d.dimLines.push({ p1: _v3(C/2, -H1/2, D/2 + 0.06), p2: _v3(C/2, -H1/2, D/2 + step + 0.06), text: `${Math.round(step/S)} mm`, color: '#D72B2B' });
+      }
+      if (ext > 0) {
+        _3d.dimLines.push({ p1: _v3(C/2, -H1/2 - H2 - T/2, D/2 + 0.1), p2: _v3(C/2 - ext, -H1/2 - H2 - T/2, D/2 + 0.1), text: f.F ? `F ${f.F} mm` : 'F', color: '#D72B2B' });
+      }
+      _fitCam(A + 40*S, H1 + H2 + CH, B + 40*S); break;
     }
     case 'wire_mesh': {
       const A = (+f.A || 600) * S, B = (+f.B || 400) * S;

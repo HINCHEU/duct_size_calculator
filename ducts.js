@@ -308,32 +308,29 @@ const DUCTS = {
   },
   plenum_tapered: {
     label: 'Plenum Box (Oval Top Inlet)',
-    tag: 'Plenum Tapered',
+    tag: 'Plenum Oval Top',
     fields: [
-      { id: 'A', label: 'Body Width A' }, { id: 'B1', label: 'Top Depth B1' }, { id: 'B2', label: 'Bottom Depth B2' },
-      { id: 'H1', label: 'Body Height H1' }, { id: 'H2', label: 'Neck Height H2' },
-      { id: 'F', label: 'Bottom Flange F' },
-      { id: 'CW', label: 'Connector Oval Width' }, { id: 'CD', label: 'Connector Oval Depth' }, { id: 'CH', label: 'Connector Height' }
+      { id: 'A', label: 'Body Width A' }, { id: 'B', label: 'Body Depth B' }, { id: 'H1', label: 'Body Height H1' },
+      { id: 'C', label: 'Neck Width C' }, { id: 'D', label: 'Neck Depth D' }, { id: 'H2', label: 'Neck Height H2' },
+      { id: 'CW', label: 'Conn Oval Width CW' }, { id: 'CD', label: 'Conn Oval Depth CD' }, { id: 'CH', label: 'Conn Height CH' },
+      { id: 'F', label: 'Bottom Flange F' }
     ],
-    calc: f => `Plenum Taper: ${f.A}×${f.B1}/${f.B2}×H${f.H1} Neck:H${f.H2} Conn:Oval ${f.CW}×${f.CD}`,
+    calc: f => `Plenum Oval: ${f.A}×${f.B}×H${f.H1} Neck:${f.C}×${f.D}×H${f.H2} Conn:${f.CW}×${f.CD}`,
     area: f => {
-      const a = +f.A, b1 = +f.B1, b2 = +f.B2, h1 = +f.H1, h2 = +f.H2, fl = +f.F || 20;
+      const a = +f.A, b = +f.B, h1 = +f.H1, c = +f.C || a, d = +f.D, h2 = +f.H2, fl = +f.F || 0;
       const cw = +f.CW, cd = +f.CD, ch = +f.CH;
       
       const ovalArea = Math.max(0, cw - cd) * cd + Math.PI * Math.pow(cd/2, 2);
       const ovalPerim = 2 * Math.max(0, cw - cd) + Math.PI * cd;
       
-      const topFace = (a * b1) - ovalArea;
-      const frontBackSlope = Math.sqrt(Math.pow(h1, 2) + Math.pow(b1 - b2, 2));
-      const frontBack = a * frontBackSlope + a * h1; // Assumes flat back
-      const leftRight = 2 * ((b1 + b2)/2 * h1);
-      
-      const neckArea = 2 * (a + b2) * h2;
-      const flangeArea = 2*(a*fl + b2*fl - 2*fl*fl);
+      const bodyTotal = 2*(a*h1 + b*h1) + (a*b);
+      const neckTotal = 2*(c*h2 + d*h2);
+      const botFace = (a*b) - (c*d);
+      const flangeTotal = fl > 0 ? 2*(c*fl + d*fl - 2*fl*fl) : 0;
       
       const connectorArea = ovalPerim * ch;
       
-      return (topFace + frontBack + leftRight + neckArea + flangeArea + connectorArea) / 1000000;
+      return (bodyTotal + botFace + neckTotal - ovalArea + connectorArea + flangeTotal) / 1000000;
     },
   },
   canvas_round: {
