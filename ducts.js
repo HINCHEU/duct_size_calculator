@@ -1,3 +1,15 @@
+/**
+ * @file ducts.js
+ * @description Configuration for all duct types supported by the calculator.
+ * 
+ * Each key in the DUCTS object represents a specific duct type with the following properties:
+ * - `label`: Human-readable name for the UI dropdown.
+ * - `tag`: Short tag used in the UI.
+ * - `fields`: Array of objects defining the required input fields (dimensions).
+ * - `calc`: Function that returns a formatted string of the dimensions.
+ * - `area`: Function that calculates the surface area in square meters (m²) based on input fields.
+ *           Dimensions are typically converted from mm to m (by dividing by 1000).
+ */
 const DUCTS = {
   rect_straight: {
     label: 'Rectangular Straight Duct',
@@ -302,7 +314,7 @@ const DUCTS = {
     area: f => {
       const a = +f.A, b = +f.B, h1 = +f.H1, d = +f.D, h2 = +f.H2, fl = +f.F || 20;
       const bodyTotal = (a*b) + 2*(a*h1) + 2*(b*h1) - Math.PI*Math.pow(d/2, 2);
-      const flangeTotal = 2*(a*fl + b*fl - 2*fl*fl); // A*B - (A-2F)*(B-2F) = 2AF + 2BF - 4F^2. Multiply by 2 for both sides = 4AF + 4BF - 8F^2
+      const flangeTotal = fl > 0 ? 2*(a*fl + b*fl + 2*fl*fl) : 0; // A*B to (A+2F)*(B+2F) = 2AF + 2BF + 4F^2
       return (bodyTotal + Math.PI*d*h2 + flangeTotal) / 1000000;
     },
   },
@@ -336,16 +348,16 @@ const DUCTS = {
   canvas_round: {
     label: 'Canvas Connection (Round)',
     tag: 'Canvas Round',
-    fields: [{ id: 'D', label: 'Diameter Ø' }, { id: 'L', label: 'Canvas Length L' }],
-    calc: f => `Canvas round: Ø${f.D}×L${f.L}`,
+    fields: [{ id: 'D', label: 'Diameter Ø' }, { id: 'L', label: 'Canvas Length L' }, { id: 'F', label: 'Flange Width F' }],
+    calc: f => `Canvas round: Ø${f.D}×L${f.L} Flange:${f.F}`,
     // Excel: Perimeter = PI*D/1000, EqLen = L/1000 (canvas, no multiplier)
     area: f => Math.PI * ((+f.D) / 1000) * ((+f.L) / 1000),
   },
   canvas_rect: {
     label: 'Canvas Connection (Rect)',
     tag: 'Canvas Rect',
-    fields: [{ id: 'A', label: 'Width A' }, { id: 'B', label: 'Height B' }, { id: 'L', label: 'Canvas Length L' }],
-    calc: f => `Canvas rect: ${f.A}×${f.B}×L${f.L}`,
+    fields: [{ id: 'A', label: 'Width A' }, { id: 'B', label: 'Height B' }, { id: 'L', label: 'Canvas Length L' }, { id: 'F', label: 'Flange Width F' }],
+    calc: f => `Canvas rect: ${f.A}×${f.B}×L${f.L} Flange:${f.F}`,
     // Excel: Perimeter = 2*(A+B)/1000, EqLen = L/1000 (canvas, no multiplier)
     area: f => 2 * ((+f.A) + (+f.B)) / 1000 * ((+f.L) / 1000),
   },

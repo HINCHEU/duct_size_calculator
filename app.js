@@ -1,6 +1,13 @@
 let items = [];
 let is3DModalOpen = false;
 
+/**
+ * Extracts and returns the display values for duct dimensions, falling back to 0 if an optional field is missing.
+ * @param {string} key - The unique identifier for the duct type.
+ * @param {Object} t - The duct type object definition from DUCTS.
+ * @param {Object} vals - The current field values from the form.
+ * @returns {Object} The processed values object.
+ */
 function getDisplayVals(key, t, vals) {
   const required = t.fields.filter(x => !x.optional);
   const ok = required.every(x => +vals[x.id] > 0);
@@ -10,6 +17,12 @@ function getDisplayVals(key, t, vals) {
   return ph;
 }
 
+/**
+ * Renders static labels over the 2D duct diagram.
+ * @param {HTMLElement} overlay - The overlay container element.
+ * @param {Object} f - The dimension values object.
+ * @param {Array} labels - Array of label objects specifying ID, title, and CSS class.
+ */
 function renderStaticLabelOverlay(overlay, f, labels) {
   if (!overlay) return;
   overlay.innerHTML = labels
@@ -26,6 +39,11 @@ function renderStaticLabelOverlay(overlay, f, labels) {
     .join('');
 }
 
+/**
+ * Specific overlay renderer for Y-Duct diagram.
+ * @param {HTMLElement} overlay - The overlay container.
+ * @param {Object} f - Dimension values.
+ */
 function renderYLabelOverlay(overlay, f) {
   renderStaticLabelOverlay(overlay, f, [
     { id: 'A', title: 'A', cls: 'y-duct-label-a' },
@@ -148,6 +166,11 @@ function renderButterflyRoundTwoLabelOverlay(overlay, f) {
   ]);
 }
 
+/**
+ * Gets the static image source path for a specific duct type.
+ * @param {string} key - The duct type key.
+ * @returns {string} The relative path to the image.
+ */
 function getStaticImageSrc(key) {
   if (key === 'r_type') return 'duct/R-TYPE%20DUCT.png';
   if (key === 'r_type_round_two') return 'duct/R-Type-duct-round-two-side.png';
@@ -159,6 +182,11 @@ function getStaticImageSrc(key) {
   return 'duct/y-duct.png';
 }
 
+/**
+ * Updates the static preview image and labels inside the 3D Modal if the duct type is 2D-only.
+ * @param {string} key - The duct type key.
+ * @param {Object} f - Dimension values.
+ */
 function updateStaticModalPreview(key, f) {
   const modal = document.getElementById('duct-3d-modal');
   const canvasWrap = document.getElementById('duct-3d-canvas-wrap-modal');
@@ -193,6 +221,11 @@ function updateStaticModalPreview(key, f) {
   }
 }
 
+/**
+ * Updates the inline static preview image and labels if the duct type is 2D-only.
+ * @param {string} key - The duct type key.
+ * @param {Object} f - Dimension values.
+ */
 function updateStaticPreview(key, f) {
   const wrap = document.getElementById('duct-img-wrap');
   const overlay = document.getElementById('duct-static-overlay');
@@ -231,6 +264,9 @@ function getActive3DContainer() {
   return document.getElementById(is3DModalOpen ? 'duct-3d-canvas-wrap-modal' : 'duct-3d-canvas-wrap');
 }
 
+/**
+ * Refreshes the 3D viewer (or static preview) based on the currently selected duct type and values.
+ */
 function refresh3DViewer() {
   const key = document.getElementById('duct-type').value;
   const t = DUCTS[key];
@@ -256,6 +292,9 @@ function refresh3DViewer() {
   build3DDuct(key, getDisplayVals(key, t, f));
 }
 
+/**
+ * Populates the duct type dropdown select element based on the DUCTS configuration.
+ */
 function buildSelect() {
   const sel = document.getElementById('duct-type');
   Object.entries(DUCTS).forEach(([k, v]) => {
@@ -265,6 +304,10 @@ function buildSelect() {
   });
 }
 
+/**
+ * Event handler triggered when the duct type selection changes.
+ * Updates the tag, refreshes the 3D viewer, and rebuilds the input fields.
+ */
 function onTypeChange() {
   const key = document.getElementById('duct-type').value;
   const t = DUCTS[key];
@@ -285,6 +328,10 @@ function onTypeChange() {
   updatePreview();
 }
 
+/**
+ * Retrieves the current values from the dynamic input fields.
+ * @returns {Object} Key-value map of field IDs and their numeric values.
+ */
 function getVals() {
   const key = document.getElementById('duct-type').value;
   const t = DUCTS[key];
@@ -293,6 +340,10 @@ function getVals() {
   return v;
 }
 
+/**
+ * Calculates and updates the surface area preview based on the current field values.
+ * Triggers an update of the 3D/2D visualizer.
+ */
 function updatePreview() {
   const key = document.getElementById('duct-type').value;
   const t = DUCTS[key];
@@ -311,6 +362,10 @@ function updatePreview() {
   if (key !== 'y_duct' && key !== 'r_type' && key !== 'r_type_round_two' && key !== '4ways' && key !== 'fan_conn' && key !== 'butterfly_rect' && key !== 'butterfly_round' && key !== 'butterfly_round_two') build3DDuct(key, displayVals);
 }
 
+/**
+ * Adds the currently configured duct item to the fabrication list.
+ * Validates required fields before adding.
+ */
 function addItem() {
   const key = document.getElementById('duct-type').value;
   const t = DUCTS[key];
@@ -323,6 +378,9 @@ function addItem() {
   clearFields();
 }
 
+/**
+ * Clears all input fields for the currently selected duct type.
+ */
 function clearFields() {
   const key = document.getElementById('duct-type').value;
   DUCTS[key].fields.forEach(f => { const e = document.getElementById('f_' + f.id); if (e) e.value = ''; });
@@ -330,8 +388,15 @@ function clearFields() {
   document.getElementById('preview-area').innerHTML = `<div class="preview-muted">Fill dimensions above to preview surface area</div>`;
 }
 
+/**
+ * Removes a specific item from the fabrication list by its unique ID.
+ * @param {number} id - The unique timestamp ID of the item.
+ */
 function removeItem(id) { items = items.filter(i => i.id !== id); renderList(); }
 
+/**
+ * Updates the summary statistics (Total Items, Total Qty, Total Area) in the UI.
+ */
 function updateStats() {
   const count = items.length;
   const totalQty = items.reduce((s, i) => s + i.qty, 0);
@@ -341,6 +406,10 @@ function updateStats() {
   document.getElementById('stat-area').innerHTML = `${total.toFixed(2)} <span class="stat-unit">m²</span>`;
 }
 
+/**
+ * Renders the fabrication list HTML based on the current items array.
+ * Displays an empty state if the list is empty.
+ */
 function renderList() {
   const el = document.getElementById('item-list');
   const tb = document.getElementById('total-bar');
@@ -378,6 +447,9 @@ function clearAll() {
   if (confirm('Clear all items from the list?')) { items = []; renderList(); }
 }
 
+/**
+ * Exports the fabrication list to a downloadable CSV file.
+ */
 function exportCSV() {
   if (!items.length) { alert('No items to export.'); return; }
   let csv = 'No,Type,Dimensions,Qty,Area per unit (m2),Total area (m2)\n';
@@ -390,6 +462,9 @@ function exportCSV() {
   a.click();
 }
 
+/**
+ * Opens a new window and generates a printable HTML report of the fabrication list.
+ */
 function exportPrint() {
   if (!items.length) { alert('No items to export.'); return; }
   const total = items.reduce((s, i) => s + i.area * i.qty, 0);
@@ -457,6 +532,9 @@ function exportPrint() {
   w.document.close();
 }
 
+/**
+ * Opens the expanded 3D viewer modal.
+ */
 function open3DModal() {
   const modal = document.getElementById('duct-3d-modal');
   if (!modal || is3DModalOpen) return;
@@ -465,6 +543,9 @@ function open3DModal() {
   refresh3DViewer();
 }
 
+/**
+ * Closes the expanded 3D viewer modal.
+ */
 function close3DModal() {
   const modal = document.getElementById('duct-3d-modal');
   if (!modal || !is3DModalOpen) return;

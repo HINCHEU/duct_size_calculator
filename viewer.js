@@ -1,5 +1,10 @@
 let _3d = null;
 
+/**
+ * Initializes the Three.js 3D viewer in the provided container element.
+ * Sets up the scene, camera, lights, controls, and rendering loop.
+ * @param {HTMLElement} container - The DOM element to append the canvas to.
+ */
 function init3DViewer(container) {
   if (_3d) {
     _3d._dead = true;
@@ -92,6 +97,9 @@ function init3DViewer(container) {
   animate();
 }
 
+/**
+ * Cleans up and disposes of the 3D viewer to free memory and prevent memory leaks.
+ */
 function dispose3DViewer() {
   if (!_3d) return;
   _3d._dead = true;
@@ -379,6 +387,12 @@ function _hollowYAsymmetric(grp, A, B, C, D, E, FF, L, R) {
   grp.add(f_branch);
 }
 
+/**
+ * Main dispatcher function to construct the 3D geometry for a given duct type.
+ * Clears the existing pivot group and builds new meshes, materials, and dimension lines.
+ * @param {string} key - The identifier for the duct type.
+ * @param {Object} f - Form field values used as dimensions.
+ */
 function build3DDuct(key, f) {
   if (!_3d) return;
   const { pivot } = _3d;
@@ -604,14 +618,46 @@ function build3DDuct(key, f) {
     }
 
     case 'canvas_rect': {
-      const W = (+f.A || 400) * S, H = (+f.B || 300) * S, L = (+f.L || 600) * S, T = Math.min(W, H) * 0.09;
-      _hollowRect(pivot, L, W, H, T);
-      [-L / 2 + 0.02, L / 2 - 0.02].forEach(x => { _box(pivot, 0.04, H + 0.01, W + 0.01, m.red, null, [x, 0, 0]); });
+      const W = (+f.A || 400) * S, H = (+f.B || 300) * S, L = (+f.L || 250) * S;
+      const F = (+f.F || 20) * S;
+      const tWall = Math.max(0.01, Math.min(W, H) * 0.02); // thin canvas wall
+
+      // Canvas body (Dark Grey)
+      const cGrp = new THREE.Group();
+      _hollowRect(cGrp, L, W, H, tWall);
+      const canvasMat = new THREE.MeshPhongMaterial({ color: 0x444444, side: THREE.DoubleSide });
+      cGrp.children.forEach(c => {
+        if (c.isMesh && c.material === _mats().galv) c.material = canvasMat;
+      });
+      pivot.add(cGrp);
+
+      if (F > 0) {
+        // Right Side: Outward Flange
+        const tF = Math.max(0.01, L * 0.05); // flange thickness along length
+        const fRight = new THREE.Group();
+        _hollowRect(fRight, tF, W + 2*F, H + 2*F, F);
+        fRight.position.set(L/2 - tF/2, 0, 0); 
+        pivot.add(fRight);
+
+        // Left Side: Straight Tube Continuation (length = F)
+        const fLeft = new THREE.Group();
+        _hollowRect(fLeft, F, W, H, tWall);
+        fLeft.position.set(-L/2 - F/2, 0, 0);
+        pivot.add(fLeft);
+      }
+      
       _3d.dimLines = [
-        { p1: _v3(-L / 2, H / 2 + 0.09, 0), p2: _v3(L / 2, H / 2 + 0.09, 0), text: f.L ? `${f.L} mm` : 'L' },
-        { p1: _v3(-L / 2 - 0.12, -H / 2, 0), p2: _v3(-L / 2 - 0.12, H / 2, 0), text: f.B ? `${f.B} mm` : 'B' },
-        { p1: _v3(-L / 2 - 0.12, H / 2 + 0.06, -W / 2), p2: _v3(-L / 2 - 0.12, H / 2 + 0.06, W / 2), text: f.A ? `${f.A} mm` : 'A' },
-      ]; _fitCam(L, H, W); break;
+        { p1: _v3(-L/2, -H/2 - 0.12, W/2), p2: _v3(L/2, -H/2 - 0.12, W/2), text: f.L ? `L ${f.L} mm` : 'L', color: '#1a7a20' },
+        { p1: _v3(-L/2 - 0.12, -H/2, W/2), p2: _v3(-L/2 - 0.12, H/2, W/2), text: f.B ? `B ${f.B} mm` : 'B' },
+        { p1: _v3(-L/2, -H/2 - 0.12, -W/2), p2: _v3(-L/2, -H/2 - 0.12, W/2), text: f.A ? `A ${f.A} mm` : 'A' }
+      ];
+      if (F > 0) {
+        // Flange width dimension (Right)
+        _3d.dimLines.push({ p1: _v3(L/2, H/2, W/2), p2: _v3(L/2, H/2 + F, W/2 + F), text: f.F ? `F ${f.F} mm` : 'F', color: '#D72B2B' });
+        // Tube length dimension (Left)
+        _3d.dimLines.push({ p1: _v3(-L/2, -H/2 - 0.12, W/2), p2: _v3(-L/2 - F, -H/2 - 0.12, W/2), text: f.F ? `${f.F} mm` : 'F', color: '#D72B2B' });
+      }
+      _fitCam(L + 2*F + 40*S, H + 2*F + 40*S, W + 2*F + 40*S); break;
     }
     case 'round_straight': {
       const R = (+f.D || 400) / 2 * S, L = (+f.L || 600) * S, T = R * 0.09;
@@ -622,13 +668,48 @@ function build3DDuct(key, f) {
       ]; _fitCam(L, R * 2, R * 2); break;
     }
     case 'canvas_round': {
-      const R = (+f.D || 400) / 2 * S, L = (+f.L || 600) * S, T = R * 0.09;
-      _hollowRound(pivot, L, R, T);
-      [-L / 2, L / 2].forEach(x => { const g = new THREE.CylinderGeometry(R * 1.06, R * 1.06, 0.045, 32); const bm = new THREE.Mesh(g, m.red); bm.rotation.z = Math.PI / 2; bm.position.x = x; pivot.add(bm); });
+      const D = (+f.D || 940) * S, L = (+f.L || 250) * S;
+      const F = (+f.F || 20) * S;
+      const r = D / 2;
+      const tWall = Math.max(0.01, r * 0.02); // thin canvas wall
+
+      // Canvas body (Dark Grey)
+      const cGrp = new THREE.Group();
+      _hollowRound(cGrp, L, r, tWall);
+      const canvasMat = new THREE.MeshPhongMaterial({ color: 0x444444, side: THREE.DoubleSide });
+      cGrp.children.forEach(c => {
+        if (c.isMesh) {
+          c.material = canvasMat;
+        }
+      });
+      pivot.add(cGrp);
+
+      if (F > 0) {
+        // Right Side: Outward Flange
+        const tF = Math.max(0.01, L * 0.05); // flange thickness along length
+        const fRight = new THREE.Group();
+        _hollowRound(fRight, tF, r + F, F);
+        fRight.position.set(L/2 - tF/2, 0, 0); 
+        pivot.add(fRight);
+
+        // Left Side: Straight Tube Continuation (length = F)
+        const fLeft = new THREE.Group();
+        _hollowRound(fLeft, F, r, tWall); // same radius as canvas
+        fLeft.position.set(-L/2 - F/2, 0, 0);
+        pivot.add(fLeft);
+      }
+      
       _3d.dimLines = [
-        { p1: _v3(-L / 2, 0, 0), p2: _v3(L / 2, 0, 0), text: f.L ? `${f.L} mm` : 'L' },
-        { p1: _v3(0, R + 0.08, 0), p2: _v3(0, -R - 0.08, 0), text: f.D ? `Ø${f.D} mm` : 'D', color: '#D72B2B' },
-      ]; _fitCam(L, R * 2, R * 2); break;
+        { p1: _v3(-L/2, 0, r + 0.12), p2: _v3(L/2, 0, r + 0.12), text: f.L ? `L ${f.L} mm` : 'L' },
+        { p1: _v3(0, -r, 0), p2: _v3(0, r, 0), text: f.D ? `Ø${f.D} mm` : 'ØD' }
+      ];
+      if (F > 0) {
+        // Flange width dimension (Right)
+        _3d.dimLines.push({ p1: _v3(L/2, r, 0), p2: _v3(L/2, r + F, 0), text: f.F ? `F ${f.F} mm` : 'F', color: '#D72B2B' });
+        // Tube length dimension (Left)
+        _3d.dimLines.push({ p1: _v3(-L/2, -r - 0.12, 0), p2: _v3(-L/2 - F, -r - 0.12, 0), text: f.F ? `${f.F} mm` : 'F', color: '#D72B2B' });
+      }
+      _fitCam(L + 2*F + 40*S, D + 2*F + 40*S, D + 2*F + 40*S); break;
     }
     case 'rect_elbow90': {
       // A=duct width, B=duct height, R=inner radius — no user L, use fixed visual stub
@@ -1387,12 +1468,12 @@ function build3DDuct(key, f) {
       const rightGeom = new THREE.PlaneGeometry(B, H1); rightGeom.rotateY(Math.PI/2); rightGeom.translate(A/2, 0, 0);
       _mesh(pivot, rightGeom, m.galv); _edge(pivot, rightGeom, m.edge);
 
-      // Bottom Flange (Y = -H1/2) extending INWARDS by F mm
+      // Bottom Flange (Y = -H1/2) extending OUTWARDS by F mm
       const ext = (+f.F || 20) * S;
       const tF = Math.min(A, B, H1) * 0.02; // flange thickness
       const yF = -H1/2 - tF/2;
       const flange = new THREE.Group(); 
-      _hollowRect(flange, tF, B, A, ext);
+      _hollowRect(flange, tF, B + 2*ext, A + 2*ext, ext);
       flange.rotation.z = Math.PI/2; 
       flange.position.set(0, yF, 0);
       pivot.add(flange);
@@ -1408,7 +1489,7 @@ function build3DDuct(key, f) {
         { p1: _v3(-A/2 - 0.14, H1/2 + 0.1, -B/2), p2: _v3(-A/2 - 0.14, H1/2 + 0.1, B/2), text: f.B ? `B ${f.B} mm` : 'B' },
         { p1: _v3(-D/2, H1/2 + H2 + 0.08, 0), p2: _v3(D/2, H1/2 + H2 + 0.08, 0), text: f.D ? `Ø${f.D}` : 'Ø', color: '#D72B2B' },
         { p1: _v3(D/2 + 0.12, H1/2, 0), p2: _v3(D/2 + 0.12, H1/2 + H2, 0), text: f.H2 ? `H2 ${f.H2} mm` : 'H2' },
-        { p1: _v3(A/2, -H1/2, B/2 + 0.12), p2: _v3(A/2 - ext, -H1/2, B/2 + 0.12), text: f.F ? `F ${f.F} mm` : 'F 20 mm', color: '#D72B2B' }
+        { p1: _v3(A/2, yF, 0.12), p2: _v3(A/2 + ext, yF, 0.12), text: f.F ? `F ${f.F} mm` : 'F 20 mm', color: '#D72B2B' }
       ];
       _fitCam(A + 40*S, H1 + H2, B + 40*S); break;
     }
@@ -1537,6 +1618,7 @@ function build3DDuct(key, f) {
         { p1: _v3(A / 2 + bLen + 0.1, -D / 2, 0), p2: _v3(A / 2 + bLen + 0.1, D / 2, 0), text: `${f.D2 || ''} mm`, color: '#D72B2B' },
       ]; _fitCam(A + bLen * 2, B, A + bLen * 2); break;
     }
+
     default: {
       const W = (+f.A || 400) * S || 0.5, H = (+f.B || 300) * S || 0.38, L = (+f.L || 600) * S || 0.75, T = Math.min(W, H) * 0.09;
       _hollowRect(pivot, L, W, H, T); _fitCam(L, H, W); break;
