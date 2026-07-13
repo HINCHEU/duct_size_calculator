@@ -1596,14 +1596,67 @@ function build3DDuct(key, f) {
       _fitCam(A + 40*S, H1 + H2 + CH, B + 40*S); break;
     }
     case 'wire_mesh': {
-      const A = (+f.A || 600) * S, B = (+f.B || 400) * S;
-      const g1 = new THREE.PlaneGeometry(A, B, 12, 8);
-      _mesh(pivot, g1, new THREE.MeshPhongMaterial({ color: 0xaabbcc, side: THREE.DoubleSide }));
-      _mesh(pivot, new THREE.PlaneGeometry(A, B, 12, 8), new THREE.MeshBasicMaterial({ color: 0x4466aa, wireframe: true }));
+      const A = (+f.A || 1800) * S, B = (+f.B || 600) * S;
+      const cellSz = (+f.C || 150) * S;
+      const frameW = (+f.OL || 150) * S;  // overlap = border frame width
+      const frameH = frameW * 0.27;        // frame depth proportional to overlap
+      const meshDepth = 8 * S;
+
+      // ── Frame border (4 sides as BoxGeometries) ──
+      const frameMat = new THREE.MeshPhongMaterial({ color: 0x888899, shininess: 60 });
+      const edgeMat = new THREE.LineBasicMaterial({ color: 0x555566 });
+
+      const addFrameBar = (w, h, d, x, y, z) => {
+        const geo = new THREE.BoxGeometry(w, h, d);
+        const bar = _mesh(pivot, geo, frameMat);
+        bar.position.set(x, y, z);
+        const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat);
+        edges.position.set(x, y, z);
+        pivot.add(edges);
+      };
+
+      // Top & bottom bars
+      addFrameBar(A, frameH, frameW, 0, 0,  B / 2 - frameW / 2);
+      addFrameBar(A, frameH, frameW, 0, 0, -B / 2 + frameW / 2);
+      // Left & right bars
+      const innerB = B - frameW * 2;
+      addFrameBar(frameW, frameH, innerB,  A / 2 - frameW / 2, 0, 0);
+      addFrameBar(frameW, frameH, innerB, -A / 2 + frameW / 2, 0, 0);
+
+      // ── Wire grid mesh in center ──
+      const gridMat = new THREE.LineBasicMaterial({ color: 0x8899cc });
+      const innerA = A - frameW * 2;
+      const meshY = frameH / 2 + meshDepth / 2;
+      const colCount = Math.max(1, Math.round(innerA / cellSz));
+      const rowCount = Math.max(1, Math.round(innerB / cellSz));
+      const actualCellW = innerA / colCount;
+      const actualCellH = innerB / rowCount;
+
+      // Horizontal lines (along A)
+      for (let r = 0; r <= rowCount; r++) {
+        const z = -innerB / 2 + r * actualCellH;
+        const geo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(-innerA / 2, meshY, z),
+          new THREE.Vector3( innerA / 2, meshY, z)
+        ]);
+        pivot.add(new THREE.Line(geo, gridMat));
+      }
+      // Vertical lines (along B)
+      for (let c = 0; c <= colCount; c++) {
+        const x = -innerA / 2 + c * actualCellW;
+        const geo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(x, meshY, -innerB / 2),
+          new THREE.Vector3(x, meshY,  innerB / 2)
+        ]);
+        pivot.add(new THREE.Line(geo, gridMat));
+      }
+
       _3d.dimLines = [
-        { p1: _v3(-A / 2, B / 2 + 0.1, 0), p2: _v3(A / 2, B / 2 + 0.1, 0), text: f.A ? `${f.A} mm` : 'A' },
-        { p1: _v3(-A / 2 - 0.12, -B / 2, 0), p2: _v3(-A / 2 - 0.12, B / 2, 0), text: f.B ? `${f.B} mm` : 'B' },
-      ]; _fitCam(A, B, 0.1); break;
+        { p1: _v3(-A / 2, 0, B / 2 + 0.08), p2: _v3(A / 2, 0, B / 2 + 0.08), text: f.A ? `${f.A} mm` : 'A' },
+        { p1: _v3(-A / 2 - 0.1, 0, -B / 2), p2: _v3(-A / 2 - 0.1, 0, B / 2), text: f.B ? `${f.B} mm` : 'B' },
+      ];
+      _fitCam(A, frameH * 3, B);
+      break;
     }
     case '4ways': {
       const A = (+f.A || 400) * S, B = (+f.B || 300) * S, C = (+f.C || 200) * S, D = (+f.D2 || 150) * S, L = (+f.L || 300) * S;

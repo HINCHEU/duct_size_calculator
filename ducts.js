@@ -395,9 +395,14 @@ const DUCTS = {
   wire_mesh: {
     label: 'Wire Mesh',
     tag: 'Wire Mesh',
-    fields: [{ id: 'A', label: 'Length A' }, { id: 'B', label: 'Width B' }],
-    calc: f => `Wire mesh: ${f.A}×${f.B}`,
-    // Excel: flat sheet area = A*B / 1e6 (mm² → m²)
+    fields: [
+      { id: 'A',  label: 'Length A' },
+      { id: 'B',  label: 'Width B' },
+      { id: 'C',  label: 'Cell Spacing @C' },
+      { id: 'OL', label: 'Overlap OL' },
+    ],
+    calc: f => `Wire mesh: ${f.A}×${f.B}×@C=${f.C || 150} Overlap=${f.OL || 150}mm`,
+    // Total area = full sheet A×B (inner mesh + 4 border overlap strips)
     area: f => (+f.A) * (+f.B) / 1e6,
   },
   transfer_air: {
