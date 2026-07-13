@@ -1131,6 +1131,28 @@ select.field-input {
   box-shadow: 0 0 0 3px rgba(27, 63, 139, 0.1);
 }
 
+/* ── THICKNESS SELECT ── */
+.thickness-select {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 7px 30px 7px 12px;
+  font-size: 13px;
+  font-family: 'Barlow', sans-serif;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238a97b8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 10px center;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.thickness-select:focus {
+  outline: none;
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(27, 63, 139, 0.1);
+}
+
 /* ── LIST PANEL ── */
 .list-panel {
   display: flex;
@@ -1279,6 +1301,22 @@ select.field-input {
   font-weight: 600;
   font-size: 13px;
   color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.item-thickness-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  background: #e8f0fe;
+  color: var(--navy);
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  font-family: 'Barlow Condensed', sans-serif;
 }
 
 .item-dim {

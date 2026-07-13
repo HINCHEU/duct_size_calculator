@@ -91,6 +91,16 @@
           <div id="dynamic-fields" class="fields-grid"></div>
 
           <div class="qty-row">
+            <span class="qty-label">Thickness</span>
+            <select id="thickness-select" class="thickness-select">
+              <option value="0.6">0.6 mm</option>
+              <option value="0.8" selected>0.8 mm</option>
+              <option value="1.0">1.0 mm</option>
+              <option value="1.2">1.2 mm</option>
+            </select>
+          </div>
+
+          <div class="qty-row">
             <span class="qty-label">Quantity</span>
             <input type="number" id="qty" class="qty-input" value="1" min="1" oninput="updatePreview()">
             <span style="font-size:12px;color:var(--text-muted)">nos</span>

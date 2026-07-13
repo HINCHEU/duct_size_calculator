@@ -305,6 +305,14 @@ function buildSelect() {
 }
 
 /**
+ * Returns the currently selected thickness value (mm).
+ */
+function getThickness() {
+  const sel = document.getElementById('thickness-select');
+  return sel ? sel.value : '0.8';
+}
+
+/**
  * Event handler triggered when the duct type selection changes.
  * Updates the tag, refreshes the 3D viewer, and rebuilds the input fields.
  */
@@ -371,9 +379,10 @@ function addItem() {
   const t = DUCTS[key];
   const f = getVals();
   const qty = parseInt(document.getElementById('qty').value) || 1;
+  const thickness = getThickness();
   const required = t.fields.filter(x => !x.optional);
   if (!required.every(x => +f[x.id] > 0)) { alert('Please fill in all required dimensions.'); return; }
-  items.push({ key, label: t.label, tag: t.tag, dim: t.calc(f), area: t.area(f), qty, id: Date.now() });
+  items.push({ key, label: t.label, tag: t.tag, dim: t.calc(f), area: t.area(f), qty, thickness, id: Date.now() });
   renderList();
   clearFields();
 }
@@ -429,7 +438,7 @@ function renderList() {
       <div class="item-num">${i + 1}</div>
       <div class="item-info">
         <div class="item-name">${item.label}</div>
-        <div class="item-dim">${item.dim}</div>
+        <div class="item-dim">${item.dim} | thickness: ${item.thickness || '0.8'}mm</div>
         <span class="item-qty">${item.qty} nos</span>
       </div>
       <div class="item-area">${sub.toFixed(2)}<div class="item-area-unit">m²</div></div>
@@ -452,8 +461,8 @@ function clearAll() {
  */
 function exportCSV() {
   if (!items.length) { alert('No items to export.'); return; }
-  let csv = 'No,Type,Dimensions,Qty,Area per unit (m2),Total area (m2)\n';
-  items.forEach((it, i) => csv += `${i + 1},"${it.label}","${it.dim}",${it.qty},${it.area.toFixed(2)},${(it.area * it.qty).toFixed(2)}\n`);
+  let csv = 'No,Type,Thickness (mm),Dimensions,Qty,Area per unit (m2),Total area (m2)\n';
+  items.forEach((it, i) => csv += `${i + 1},"${it.label}",${it.thickness || '0.8'},"${it.dim}",${it.qty},${it.area.toFixed(2)},${(it.area * it.qty).toFixed(2)}\n`);
   const tot = items.reduce((s, i) => s + i.area * i.qty, 0);
   csv += `,,,,Grand Total,${tot.toFixed(2)}\n`;
   const a = document.createElement('a');
@@ -469,7 +478,7 @@ function exportPrint() {
   if (!items.length) { alert('No items to export.'); return; }
   const total = items.reduce((s, i) => s + i.area * i.qty, 0);
   const totalQty = items.reduce((s, i) => s + i.qty, 0);
-  const rows = items.map((it, i) => `<tr><td>${i + 1}</td><td>${it.label}</td><td style="font-family:monospace">${it.dim}</td><td style="text-align:center">${it.qty}</td><td style="text-align:right">${it.area.toFixed(2)}</td><td style="text-align:right;font-weight:700">${(it.area * it.qty).toFixed(2)}</td></tr>`).join('');
+  const rows = items.map((it, i) => `<tr><td>${i + 1}</td><td>${it.label}</td><td style="text-align:center">${it.thickness || '0.8'} mm</td><td style="font-family:monospace">${it.dim}</td><td style="text-align:center">${it.qty}</td><td style="text-align:right">${it.area.toFixed(2)}</td><td style="text-align:right;font-weight:700">${(it.area * it.qty).toFixed(2)}</td></tr>`).join('');
   const w = window.open('', '_blank');
   w.document.write(`<!DOCTYPE html><html><head><title>CE&P Duct Fabrication Report</title>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -505,7 +514,7 @@ function exportPrint() {
     <h2>Duct Fabrication Material Report</h2>
     <div class="meta">Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()} · ${items.length} item types · ${totalQty} nos total</div>
     <table>
-      <thead><tr><th>#</th><th>Duct Type</th><th>Dimensions</th><th style="text-align:center">Qty</th><th style="text-align:right">Area/unit (m²)</th><th style="text-align:right">Total (m²)</th></tr></thead>
+      <thead><tr><th>#</th><th>Duct Type</th><th style="text-align:center">Thickness</th><th>Dimensions</th><th style="text-align:center">Qty</th><th style="text-align:right">Area/unit (m²)</th><th style="text-align:right">Total (m²)</th></tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr><td colspan="3">Grand Total</td><td style="text-align:center;color:#fff">${totalQty} nos</td><td></td><td style="text-align:right;color:#fff;font-size:16px">${total.toFixed(2)} m²</td></tr></tfoot>
     </table>
