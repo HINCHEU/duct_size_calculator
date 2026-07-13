@@ -1671,6 +1671,67 @@ function build3DDuct(key, f) {
         { p1: _v3(A / 2 + bLen + 0.1, -D / 2, 0), p2: _v3(A / 2 + bLen + 0.1, D / 2, 0), text: `${f.D2 || ''} mm`, color: '#D72B2B' },
       ]; _fitCam(A + bLen * 2, B, A + bLen * 2); break;
     }
+    case 'angle_bar': {
+      const size = (+f.Size || 30) * S;
+      const L = (+f.L || 1100) * S;
+      const hd = (+f.HD || 12) * S;
+      const dist = (+f.Dist || 25) * S;
+      const thickness = 4 * S; // default thickness for visualization
+
+      // 1. Bottom Flange (with holes)
+      const botShape = new THREE.Shape();
+      botShape.moveTo(0, 0);
+      botShape.lineTo(L, 0);
+      botShape.lineTo(L, size);
+      botShape.lineTo(0, size);
+      botShape.lineTo(0, 0);
+
+      // Add Holes
+      if (hd > 0 && dist >= 0 && dist * 2 <= L) {
+        const radius = hd / 2;
+        const hole1 = new THREE.Path();
+        hole1.absarc(dist, size / 2, radius, 0, Math.PI * 2, false);
+        botShape.holes.push(hole1);
+
+        const hole2 = new THREE.Path();
+        hole2.absarc(L - dist, size / 2, radius, 0, Math.PI * 2, false);
+        botShape.holes.push(hole2);
+      }
+
+      const botGeom = new THREE.ExtrudeGeometry(botShape, { depth: thickness, bevelEnabled: false, curveSegments: 16 });
+      botGeom.center(); 
+      botGeom.rotateY(Math.PI / 2);
+      botGeom.rotateZ(Math.PI / 2);
+      botGeom.translate(0, -size / 2 + thickness / 2, 0);
+
+      _mesh(pivot, botGeom, m.galv);
+      _edge(pivot, botGeom, m.edge);
+
+      // 2. Vertical Flange (no holes)
+      const vertHeight = size - thickness;
+      if (vertHeight > 0) {
+        const vertGeom = new THREE.BoxGeometry(thickness, vertHeight, L);
+        vertGeom.translate(-size / 2 + thickness / 2, -size / 2 + thickness + vertHeight / 2, 0);
+        _mesh(pivot, vertGeom, m.galv);
+        _edge(pivot, vertGeom, m.edge);
+      }
+
+      _3d.dimLines = [
+        { p1: _v3(-size/2, -size/2 - 0.1, 0), p2: _v3(size/2, -size/2 - 0.1, 0), text: `${f.Size || 30} mm` },
+        { p1: _v3(-size/2 - 0.1, -size/2, 0), p2: _v3(-size/2 - 0.1, size/2, 0), text: `${f.Size || 30} mm` },
+        { p1: _v3(0, size/2 + 0.1, -L/2), p2: _v3(0, size/2 + 0.1, L/2), text: f.L ? `L ${f.L} mm` : 'L' }
+      ];
+
+      // Distance from end to hole dimensions
+      if (hd > 0 && dist > 0 && dist * 2 <= L) {
+        const dimY = -size/2 + thickness + 0.05;
+        _3d.dimLines.push({ p1: _v3(0, dimY, L/2), p2: _v3(0, dimY, L/2 - dist), text: `${f.Dist} mm`, color: '#D72B2B' });
+        _3d.dimLines.push({ p1: _v3(0, dimY, -L/2), p2: _v3(0, dimY, -L/2 + dist), text: `${f.Dist} mm`, color: '#D72B2B' });
+      }
+
+      _fitCam(size, size, L);
+      break;
+    }
 
     default: {
       const W = (+f.A || 400) * S || 0.5, H = (+f.B || 300) * S || 0.38, L = (+f.L || 600) * S || 0.75, T = Math.min(W, H) * 0.09;

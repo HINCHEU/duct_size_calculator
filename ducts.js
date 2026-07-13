@@ -491,5 +491,34 @@ const DUCTS = {
       const centre       = 2 * avgPerim / 1000 * (rAvg / 1000);
       return leftBranch + rightBranch + topBranch + bottomBranch + centre;
     },
+  },
+  angle_bar: {
+    label: 'Angle Bar',
+    tag: 'Angle Bar',
+    category: 'Support',
+    unit: 'm',
+    thicknessOptions: [
+      { value: '3', label: '3 mm', selected: true },
+      { value: '4', label: '4 mm' },
+      { value: '5', label: '5 mm' }
+    ],
+    fields: [
+      { id: 'L', label: 'Length L' },
+      { id: 'HD', label: 'Hole Diameter Ø' },
+      { id: 'Dist', label: 'Distance from End' },
+      { 
+        id: 'Size', 
+        label: 'Size (W x H)', 
+        type: 'select', 
+        options: [
+          { value: '30', label: '30mm x 30mm' },
+          { value: '40', label: '40mm x 40mm' },
+          { value: '50', label: '50mm x 50mm' },
+          { value: '75', label: '75mm x 75mm' }
+        ]
+      }
+    ],
+    calc: f => `Angle bar: ${f.Size || 30}×${f.Size || 30}×L${f.L} Hole:Ø${f.HD} Dist:${f.Dist}`,
+    area: f => (+f.L || 0) / 1000,
   }
 };

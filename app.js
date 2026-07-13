@@ -297,11 +297,23 @@ function refresh3DViewer() {
  */
 function buildSelect() {
   const sel = document.getElementById('duct-type');
+  sel.innerHTML = '';
+  const ductsGroup = document.createElement('optgroup');
+  ductsGroup.label = 'Ducts';
+  const supportsGroup = document.createElement('optgroup');
+  supportsGroup.label = 'Supports';
+
   Object.entries(DUCTS).forEach(([k, v]) => {
     const o = document.createElement('option');
     o.value = k; o.textContent = v.label;
-    sel.appendChild(o);
+    if (v.category === 'Support') {
+      supportsGroup.appendChild(o);
+    } else {
+      ductsGroup.appendChild(o);
+    }
   });
+  sel.appendChild(ductsGroup);
+  if (supportsGroup.children.length > 0) sel.appendChild(supportsGroup);
 }
 
 /**
@@ -330,9 +342,27 @@ function onTypeChange() {
   t.fields.forEach((f, i) => {
     const d = document.createElement('div');
     d.className = 'field-group' + (t.fields.length % 2 !== 0 && i === t.fields.length - 1 ? ' full' : '');
-    d.innerHTML = `<label class="field-label">${f.label}</label><input type="number" id="f_${f.id}" class="field-input" placeholder="mm" min="0" oninput="updatePreview()">`;
+    if (f.type === 'select') {
+      let optionsHtml = f.options.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('');
+      d.innerHTML = `<label class="field-label">${f.label}</label><select id="f_${f.id}" class="field-input" onchange="updatePreview()">${optionsHtml}</select>`;
+    } else {
+      d.innerHTML = `<label class="field-label">${f.label}</label><input type="number" id="f_${f.id}" class="field-input" placeholder="mm" min="0" oninput="updatePreview()">`;
+    }
     c.appendChild(d);
   });
+
+  const thicknessSelect = document.getElementById('thickness-select');
+  if (thicknessSelect) {
+    const defaultThicknessOptions = [
+      { value: '0.6', label: '0.6 mm' },
+      { value: '0.8', label: '0.8 mm', selected: true },
+      { value: '1.0', label: '1.0 mm' },
+      { value: '1.2', label: '1.2 mm' }
+    ];
+    const options = t.thicknessOptions || defaultThicknessOptions;
+    thicknessSelect.innerHTML = options.map(opt => `<option value="${opt.value}" ${opt.selected ? 'selected' : ''}>${opt.label}</option>`).join('');
+  }
+
   updatePreview();
 }
 
@@ -362,9 +392,10 @@ function updatePreview() {
   const p = document.getElementById('preview-area');
   if (ok) {
     const area = t.area(f);
-    p.innerHTML = `<div class="preview-dim">${t.calc(f)}</div><div class="preview-area">${area.toFixed(2)} <span style="font-size:14px;font-weight:400;color:var(--text-secondary)">m²</span></div>`;
+    const unit = t.unit || 'm²';
+    p.innerHTML = `<div class="preview-dim">${t.calc(f)}</div><div class="preview-area">${area.toFixed(2)} <span style="font-size:14px;font-weight:400;color:var(--text-secondary)">${unit}</span></div>`;
   } else {
-    p.innerHTML = `<div class="preview-muted">Fill dimensions above to preview surface area</div>`;
+    p.innerHTML = `<div class="preview-muted">Fill dimensions above to preview quantity</div>`;
   }
   updateStaticPreview(key, f);
   if (key !== 'y_duct' && key !== 'r_type' && key !== 'r_type_round_two' && key !== '4ways' && key !== 'fan_conn' && key !== 'butterfly_rect' && key !== 'butterfly_round' && key !== 'butterfly_round_two') build3DDuct(key, displayVals);
@@ -382,7 +413,7 @@ function addItem() {
   const thickness = getThickness();
   const required = t.fields.filter(x => !x.optional);
   if (!required.every(x => +f[x.id] > 0)) { alert('Please fill in all required dimensions.'); return; }
-  items.push({ key, label: t.label, tag: t.tag, dim: t.calc(f), area: t.area(f), qty, thickness, id: Date.now() });
+  items.push({ key, label: t.label, tag: t.tag, category: t.category || 'Duct', dim: t.calc(f), area: t.area(f), unit: t.unit || 'm²', qty, thickness, id: Date.now() });
   renderList();
   clearFields();
 }
@@ -409,10 +440,22 @@ function removeItem(id) { items = items.filter(i => i.id !== id); renderList(); 
 function updateStats() {
   const count = items.length;
   const totalQty = items.reduce((s, i) => s + i.qty, 0);
-  const total = items.reduce((s, i) => s + i.area * i.qty, 0);
+  const totalArea = items.filter(i => i.unit !== 'm').reduce((s, i) => s + i.area * i.qty, 0);
+  const totalLength = items.filter(i => i.unit === 'm').reduce((s, i) => s + i.area * i.qty, 0);
+  
   document.getElementById('stat-items').textContent = count;
   document.getElementById('stat-qty').innerHTML = `${totalQty} <span class="stat-unit">nos</span>`;
-  document.getElementById('stat-area').innerHTML = `${total.toFixed(2)} <span class="stat-unit">m²</span>`;
+  document.getElementById('stat-area').innerHTML = `${totalArea.toFixed(2)} <span class="stat-unit">m²</span>`;
+  
+  const lenCard = document.getElementById('stat-length-card');
+  if (lenCard) {
+    if (totalLength > 0) {
+      lenCard.style.display = 'block';
+      document.getElementById('stat-length').innerHTML = `${totalLength.toFixed(2)} <span class="stat-unit">m</span>`;
+    } else {
+      lenCard.style.display = 'none';
+    }
+  }
 }
 
 /**
@@ -430,10 +473,11 @@ function renderList() {
   }
   tb.style.display = 'flex';
   let html = '';
-  let total = 0;
+  let totalArea = 0;
+  let totalLength = 0;
   items.forEach((item, i) => {
     const sub = item.area * item.qty;
-    total += sub;
+    if (item.unit === 'm') totalLength += sub; else totalArea += sub;
     html += `<div class="item-row">
       <div class="item-num">${i + 1}</div>
       <div class="item-info">
@@ -441,14 +485,19 @@ function renderList() {
         <div class="item-dim">${item.dim} | thickness: ${item.thickness || '0.8'}mm</div>
         <span class="item-qty">${item.qty} nos</span>
       </div>
-      <div class="item-area">${sub.toFixed(2)}<div class="item-area-unit">m²</div></div>
+      <div class="item-area">${sub.toFixed(2)}<div class="item-area-unit">${item.unit}</div></div>
       <button class="btn-del" onclick="removeItem(${item.id})">✕</button>
     </div>`;
   });
   el.innerHTML = html;
   const totalQty = items.reduce((s, i) => s + i.qty, 0);
   document.getElementById('total-items-label').textContent = `${items.length} items · ${totalQty} nos`;
-  document.getElementById('total-area-val').innerHTML = `${total.toFixed(2)} <span class="total-m2">m²</span>`;
+  
+  let totalHtml = '';
+  if (totalArea > 0) totalHtml += `${totalArea.toFixed(2)} <span class="total-m2">m²</span>`;
+  if (totalArea > 0 && totalLength > 0) totalHtml += ` <span style="font-size:16px;color:rgba(255,255,255,0.5);margin:0 10px;">|</span> `;
+  if (totalLength > 0) totalHtml += `${totalLength.toFixed(2)} <span class="total-m2">m</span>`;
+  document.getElementById('total-area-val').innerHTML = totalHtml;
 }
 
 function clearAll() {
@@ -461,10 +510,12 @@ function clearAll() {
  */
 function exportCSV() {
   if (!items.length) { alert('No items to export.'); return; }
-  let csv = 'No,Type,Thickness (mm),Dimensions,Qty,Area per unit (m2),Total area (m2)\n';
-  items.forEach((it, i) => csv += `${i + 1},"${it.label}",${it.thickness || '0.8'},"${it.dim}",${it.qty},${it.area.toFixed(2)},${(it.area * it.qty).toFixed(2)}\n`);
-  const tot = items.reduce((s, i) => s + i.area * i.qty, 0);
-  csv += `,,,,Grand Total,${tot.toFixed(2)}\n`;
+  let csv = 'No,Category,Type,Thickness (mm),Dimensions,Qty,Value per unit,Total value,Unit\n';
+  items.forEach((it, i) => csv += `${i + 1},"${it.category || 'Duct'}","${it.label}",${it.thickness || '0.8'},"${it.dim}",${it.qty},${it.area.toFixed(2)},${(it.area * it.qty).toFixed(2)},${it.unit}\n`);
+  const totA = items.filter(i=>i.unit !== 'm').reduce((s, i) => s + i.area * i.qty, 0);
+  const totL = items.filter(i=>i.unit === 'm').reduce((s, i) => s + i.area * i.qty, 0);
+  if(totA > 0) csv += `,,,,Grand Total Area,,,${totA.toFixed(2)},m2\n`;
+  if(totL > 0) csv += `,,,,Grand Total Length,,,${totL.toFixed(2)},m\n`;
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
   a.download = 'CEP_duct_fabrication.csv';
@@ -476,9 +527,11 @@ function exportCSV() {
  */
 function exportPrint() {
   if (!items.length) { alert('No items to export.'); return; }
-  const total = items.reduce((s, i) => s + i.area * i.qty, 0);
+  
   const totalQty = items.reduce((s, i) => s + i.qty, 0);
-  const rows = items.map((it, i) => `<tr><td>${i + 1}</td><td>${it.label}</td><td style="text-align:center">${it.thickness || '0.8'} mm</td><td style="font-family:monospace">${it.dim}</td><td style="text-align:center">${it.qty}</td><td style="text-align:right">${it.area.toFixed(2)}</td><td style="text-align:right;font-weight:700">${(it.area * it.qty).toFixed(2)}</td></tr>`).join('');
+  const ducts = items.filter(i => i.unit !== 'm');
+  const supports = items.filter(i => i.unit === 'm');
+
   const w = window.open('', '_blank');
   w.document.write(`<!DOCTYPE html><html><head><title>CE&P Duct Fabrication Report</title>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -492,7 +545,7 @@ function exportPrint() {
     .content{padding:24px 28px}
     h2{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:#1B3F8B;margin-bottom:4px}
     .meta{font-size:12px;color:#8a97b8;margin-bottom:20px}
-    table{width:100%;border-collapse:collapse;font-size:13px}
+    table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:30px}
     th{background:#1B3F8B;color:#fff;padding:10px 12px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:0.5px;text-transform:uppercase}
     td{border-bottom:1px solid #dde3f0;padding:9px 12px}
     tr:nth-child(even) td{background:#f4f6fb}
@@ -511,13 +564,35 @@ function exportPrint() {
   </div>
   <div class="red-bar"></div>
   <div class="content">
-    <h2>Duct Fabrication Material Report</h2>
-    <div class="meta">Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()} · ${items.length} item types · ${totalQty} nos total</div>
-    <table>
-      <thead><tr><th>#</th><th>Duct Type</th><th style="text-align:center">Thickness</th><th>Dimensions</th><th style="text-align:center">Qty</th><th style="text-align:right">Area/unit (m²)</th><th style="text-align:right">Total (m²)</th></tr></thead>
-      <tbody>${rows}</tbody>
-      <tfoot><tr><td colspan="3">Grand Total</td><td style="text-align:center;color:#fff">${totalQty} nos</td><td></td><td style="text-align:right;color:#fff;font-size:16px">${total.toFixed(2)} m²</td></tr></tfoot>
-    </table>
+    <div class="meta" style="margin-top:10px;margin-bottom:30px;font-size:14px;">Report Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()} · ${items.length} item types · ${totalQty} nos total</div>`);
+
+  if (ducts.length > 0) {
+    const dRows = ducts.map((it, i) => `<tr><td>${i + 1}</td><td>${it.label}</td><td style="text-align:center">${it.thickness || '0.8'} mm</td><td style="font-family:monospace">${it.dim}</td><td style="text-align:center">${it.qty}</td><td style="text-align:right">${it.area.toFixed(2)}</td><td style="text-align:right;font-weight:700">${(it.area * it.qty).toFixed(2)}</td></tr>`).join('');
+    const dTot = ducts.reduce((s, i) => s + i.area * i.qty, 0);
+    const dQty = ducts.reduce((s, i) => s + i.qty, 0);
+    w.document.write(`
+      <h2>Duct Fabrication List</h2>
+      <table>
+        <thead><tr><th>#</th><th>Duct Type</th><th style="text-align:center">Thickness</th><th>Dimensions</th><th style="text-align:center">Qty</th><th style="text-align:right">Area/unit (m²)</th><th style="text-align:right">Total (m²)</th></tr></thead>
+        <tbody>${dRows}</tbody>
+        <tfoot><tr><td colspan="4">Total Ducts</td><td style="text-align:center;color:#fff">${dQty} nos</td><td></td><td style="text-align:right;color:#fff;font-size:16px">${dTot.toFixed(2)} m²</td></tr></tfoot>
+      </table>`);
+  }
+
+  if (supports.length > 0) {
+    const sRows = supports.map((it, i) => `<tr><td>${i + 1}</td><td>${it.label}</td><td style="text-align:center">${it.thickness || '3'} mm</td><td style="font-family:monospace">${it.dim}</td><td style="text-align:center">${it.qty}</td><td style="text-align:right">${it.area.toFixed(2)}</td><td style="text-align:right;font-weight:700">${(it.area * it.qty).toFixed(2)}</td></tr>`).join('');
+    const sTot = supports.reduce((s, i) => s + i.area * i.qty, 0);
+    const sQty = supports.reduce((s, i) => s + i.qty, 0);
+    w.document.write(`
+      <h2>Support Materials List</h2>
+      <table>
+        <thead><tr><th>#</th><th>Support Type</th><th style="text-align:center">Thickness</th><th>Dimensions</th><th style="text-align:center">Qty</th><th style="text-align:right">Length/unit (m)</th><th style="text-align:right">Total (m)</th></tr></thead>
+        <tbody>${sRows}</tbody>
+        <tfoot><tr><td colspan="4">Total Supports</td><td style="text-align:center;color:#fff">${sQty} nos</td><td></td><td style="text-align:right;color:#fff;font-size:16px">${sTot.toFixed(2)} m</td></tr></tfoot>
+      </table>`);
+  }
+
+  w.document.write(`
     <div class="sig-section">
       <div class="sig-box">
         <div class="sig-line"></div>
