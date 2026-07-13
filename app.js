@@ -104,18 +104,18 @@ function renderButterflyLabelOverlay(overlay, f) {
 
 function renderFourWaysLabelOverlay(overlay, f) {
   renderStaticLabelOverlay(overlay, f, [
-    { id: 'A', title: 'A1', cls: 'four-way-label-a1' },
-    { id: 'C', title: 'A2', cls: 'four-way-label-a2' },
-    { id: 'C', title: 'A3', cls: 'four-way-label-a3' },
-    { id: 'C', title: 'A4', cls: 'four-way-label-a4' },
-    { id: 'B', title: 'B1', cls: 'four-way-label-b1' },
-    { id: 'D2', title: 'B2', cls: 'four-way-label-b2' },
-    { id: 'D2', title: 'B3', cls: 'four-way-label-b3' },
-    { id: 'D2', title: 'B4', cls: 'four-way-label-b4' },
+    { id: 'A1', title: 'A1', cls: 'four-way-label-a1' },
+    { id: 'A4', title: 'A4', cls: 'four-way-label-a4' },
+    { id: 'A2', title: 'A2', cls: 'four-way-label-a2' },
+    { id: 'A3', title: 'A3', cls: 'four-way-label-a3' },
+    { id: 'B1', title: 'B1', cls: 'four-way-label-b1' },
+    { id: 'B4', title: 'B4', cls: 'four-way-label-b4' },
+    { id: 'B2', title: 'B2', cls: 'four-way-label-b2' },
+    { id: 'B3', title: 'B3', cls: 'four-way-label-b3' },
     { title: 'Angular1', cls: 'four-way-label-angular1' },
     { title: 'Angular2', cls: 'four-way-label-angular2' },
-    { id: 'R', title: 'R1', cls: 'four-way-label-r1' },
-    { id: 'R', title: 'R2', cls: 'four-way-label-r2' },
+    { id: 'R1', title: 'R1', cls: 'four-way-label-r1' },
+    { id: 'R2', title: 'R2', cls: 'four-way-label-r2' },
   ]);
 }
 

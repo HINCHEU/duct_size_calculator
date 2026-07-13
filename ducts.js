@@ -60,7 +60,7 @@ const DUCTS = {
     area: f => { const d = +f.D, r = +f.R; const Rc = r + d / 2; return Math.PI * d / 1000 * (Math.PI / 4 * Rc / 1000); },
   },
   duct_reducer: {
-    label: 'Duct Reducer (Rect→Rect)',
+    label: 'Duct Reducer (Rect-Rect)',
     tag: 'Reducer',
     fields: [{ id: 'A', label: 'Start Width A' }, { id: 'B', label: 'Start Height B' }, { id: 'C', label: 'End Width C' }, { id: 'D2', label: 'End Height D' }, { id: 'L', label: 'Length L' }],
     calc: f => `Duct reducer: (${f.A}×${f.B})→(${f.C}×${f.D2})×L${f.L}`,
@@ -68,7 +68,7 @@ const DUCTS = {
     area: f => { const a = +f.A, b = +f.B, l = +f.L; return 2 * (a + b) / 1000 * (l / 1000 * 1.2); },
   },
   rect_to_round: {
-    label: 'Duct Reducer (Rect→Round)',
+    label: 'Duct Reducer (Rect-Round)',
     tag: 'Rect to Round',
     fields: [{ id: 'A', label: 'Width A' }, { id: 'B', label: 'Height B' }, { id: 'D', label: 'Diameter Ø' }, { id: 'L', label: 'Length L' }],
     calc: f => `Rectangle to Round : ${f.A}x${f.B} -> Ø${f.D}mmxL${f.L}`,
@@ -455,12 +455,36 @@ const DUCTS = {
   '4ways': {
     label: '4-Ways Duct',
     tag: '4-Ways',
-    fields: [{ id: 'A', label: 'Main Width A' }, { id: 'B', label: 'Main Height B' }, { id: 'C', label: 'Branch Width C' }, { id: 'D2', label: 'Branch Height D' }, { id: 'R', label: 'Radius R' }, { id: 'L', label: 'Length L' }],
-    calc: f => `4-ways: ${f.A}×${f.B}→4×(${f.C}×${f.D2}R${f.R})×L${f.L}`,
-    // Excel: main body = 2*(A+B)/1000 * L/1000 + 4 branches = 4 * 2*(C+D)/1000 * PI/2*R/1000
+    fields: [
+      { id: 'A1',  label: 'Main Bottom Width A1' },
+      { id: 'B1',  label: 'Main Bottom Height B1' },
+      { id: 'A4',  label: 'Main Top Width A4' },
+      { id: 'B4',  label: 'Main Top Height B4' },
+      { id: 'A2',  label: 'Right Branch Width A2' },
+      { id: 'B2',  label: 'Right Branch Height B2' },
+      { id: 'A3',  label: 'Left Branch Width A3' },
+      { id: 'B3',  label: 'Left Branch Height B3' },
+      { id: 'R1',  label: 'Left Radius R1' },
+      { id: 'R2',  label: 'Right Radius R2' },
+    ],
+    calc: f => `4-ways: ${f.A1}×${f.B1}/${f.A4}×${f.B4} + ${f.A2}×${f.B2}(R${f.R2}) + ${f.A3}×${f.B3}(R${f.R1})`,
+    // Left branch (R1): 2*(A3+B3)/1000 * PI/2*R1/1000
+    // Right branch (R2): 2*(A2+B2)/1000 * PI/2*R2/1000
+    // Top branch (R1+R2 avg): 2*(A4+B4)/1000 * PI/2*((R1+R2)/2)/1000
+    // Bottom branch (R1+R2 avg): 2*(A1+B1)/1000 * PI/2*((R1+R2)/2)/1000
+    // Centre body: 2*((A1+B1+A4+B4)/2)/1000 * (R1+R2)/2/1000
     area: f => {
-      const a = +f.A, b = +f.B, c = +f.C, d = +f.D2, r = +f.R, l = +f.L;
-      return 2 * (a + b) / 1000 * (l / 1000) + 4 * 2 * (c + d) / 1000 * (Math.PI / 2 * r / 1000);
+      const a1 = +f.A1, b1 = +f.B1, a4 = +f.A4, b4 = +f.B4;
+      const a2 = +f.A2, b2 = +f.B2, a3 = +f.A3, b3 = +f.B3;
+      const r1 = +f.R1, r2 = +f.R2;
+      const rAvg = (r1 + r2) / 2;
+      const leftBranch   = 2 * (a3 + b3) / 1000 * (Math.PI / 2 * r1 / 1000);
+      const rightBranch  = 2 * (a2 + b2) / 1000 * (Math.PI / 2 * r2 / 1000);
+      const topBranch    = 2 * (a4 + b4) / 1000 * (Math.PI / 2 * rAvg / 1000);
+      const bottomBranch = 2 * (a1 + b1) / 1000 * (Math.PI / 2 * rAvg / 1000);
+      const avgPerim = ((a1 + b1) + (a4 + b4)) / 2;
+      const centre       = 2 * avgPerim / 1000 * (rAvg / 1000);
+      return leftBranch + rightBranch + topBranch + bottomBranch + centre;
     },
   }
 };
