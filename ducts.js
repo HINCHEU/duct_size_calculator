@@ -520,5 +520,34 @@ const DUCTS = {
     ],
     calc: f => `Angle bar: ${f.Size || 30}×${f.Size || 30}×L${f.L} Hole:Ø${f.HD} Dist:${f.Dist}`,
     area: f => (+f.L || 0) / 1000,
+  },
+  angle_bar_u: {
+    label: 'Angle Bar (U Shape)',
+    tag: 'U-Channel',
+    category: 'Support',
+    unit: 'm',
+    thicknessOptions: [
+      { value: '4', label: '4 mm', selected: true },
+      { value: '5', label: '5 mm' }
+    ],
+    fields: [
+      { id: 'L', label: 'Length L' },
+      { id: 'HD', label: 'Hole Diameter Ø' },
+      { id: 'Dist', label: 'Distance from End' },
+      { 
+        id: 'Size', 
+        label: 'Size (W x H x D)', 
+        type: 'select', 
+        options: [
+          { value: '40', label: '40mm x 40mm x 40mm' },
+          { value: '50', label: '50mm x 50mm x 50mm' },
+          { value: '80', label: '80mm x 80mm x 80mm' },
+          { value: '100', label: '100mm x 100mm x 100mm' },
+          { value: '150', label: '150mm x 150mm x 150mm' }
+        ]
+      }
+    ],
+    calc: f => `Angle bar (U Shape): ${f.Size || 50}×${f.Size || 50}×${f.Size || 50}×L${f.L} Hole:Ø${f.HD} Dist:${f.Dist}`,
+    area: f => (+f.L || 0) / 1000,
   }
 };
