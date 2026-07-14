@@ -72,10 +72,18 @@ const DUCTS = {
     tag: 'Rect to Round',
     fields: [{ id: 'A', label: 'Width A' }, { id: 'B', label: 'Height B' }, { id: 'D', label: 'Diameter Ø' }, { id: 'L', label: 'Length L' }],
     calc: f => `Rectangle to Round : ${f.A}x${f.B} -> Ø${f.D}mmxL${f.L}`,
-    // Half straight rect (L/2) + half transition to round (L/2)
+    // Rect neck (30mm) + transition + Round neck (50mm)
     area: f => {
       const pRect = 2 * (+f.A + +f.B), pRound = Math.PI * (+f.D), l = +f.L;
-      return (pRect * (l / 2) + ((pRect + pRound) / 2) * (l / 2)) / 1000000;
+      let neckRectL = 30;
+      let neckRoundL = 50;
+      if (l < neckRectL + neckRoundL + 20) {
+        const scale = l / (neckRectL + neckRoundL + 20);
+        neckRectL *= scale;
+        neckRoundL *= scale;
+      }
+      const transL = l - neckRectL - neckRoundL;
+      return (pRect * neckRectL + pRound * neckRoundL + ((pRect + pRound) / 2) * transL) / 1000000;
     },
   },
   butterfly_round: {
@@ -170,36 +178,36 @@ const DUCTS = {
     label: 'Offset Duct (With Straight Ends)',
     tag: 'Offset+Straight',
     fields: [
-      { id: 'A', label: 'Width A' }, 
-      { id: 'B', label: 'Height B' }, 
-      { id: 'R', label: 'Offset Drop R' }, 
+      { id: 'A', label: 'Width A' },
+      { id: 'B', label: 'Height B' },
+      { id: 'R', label: 'Offset Drop R' },
       { id: 'L', label: 'Middle Length L' },
       { id: 'L1', label: 'Start Straight L1' },
       { id: 'L2', label: 'End Straight L2' }
     ],
     calc: f => `Offset w/ Straight: ${f.A}×${f.B}×R${f.R}×L${f.L} (L1:${f.L1}, L2:${f.L2})`,
-    area: f => { 
-      const a = +f.A, b = +f.B, l = +f.L, r = +f.R, l1 = +f.L1 || 0, l2 = +f.L2 || 0; 
+    area: f => {
+      const a = +f.A, b = +f.B, l = +f.L, r = +f.R, l1 = +f.L1 || 0, l2 = +f.L2 || 0;
       const middleL = l - l1 - l2;
       const p = 2 * (a + b);
-      return (p * l1 + p * l2 + 2 * b * middleL + 2 * a * Math.hypot(middleL, r)) / 1000000; 
+      return (p * l1 + p * l2 + 2 * b * middleL + 2 * a * Math.hypot(middleL, r)) / 1000000;
     },
   },
   offset_duct_angular: {
     label: 'Offset Duct (With Angular Ends)',
     tag: 'Offset+Angular',
     fields: [
-      { id: 'A', label: 'Width A' }, 
-      { id: 'B', label: 'Height B' }, 
-      { id: 'R', label: 'Offset Drop R' }, 
+      { id: 'A', label: 'Width A' },
+      { id: 'B', label: 'Height B' },
+      { id: 'R', label: 'Offset Drop R' },
       { id: 'L', label: 'Total Length L' },
       { id: 'Rc', label: 'Curve Radius Rc' },
       { id: 'A1', label: 'Start Angle (deg)' },
       { id: 'A2', label: 'End Angle (deg)' }
     ],
     calc: f => `Offset w/ Ang: ${f.A}×${f.B}×R${f.R}×L${f.L} (Rc:${f.Rc}, Ang:${f.A1}°,${f.A2}°)`,
-    area: f => { 
-      const a = +f.A || 750, b = +f.B || 300, l = +f.L || 930, H = +f.R || 620; 
+    area: f => {
+      const a = +f.A || 750, b = +f.B || 300, l = +f.L || 930, H = +f.R || 620;
       const ang1 = Math.min(60, Math.max(-60, +f.A1 || 30)) * Math.PI / 180;
       const ang2 = Math.min(60, Math.max(-60, +f.A2 || 30)) * Math.PI / 180;
       let Rc = (+f.Rc || 150);
@@ -219,7 +227,7 @@ const DUCTS = {
       const tangentL = Math.sqrt(Math.max(0, D * D - 4 * r * r));
       const centerL = s1 + s2 + 2 * alpha * r + tangentL;
       const p = 2 * (a + b);
-      return (p * centerL) / 1000000; 
+      return (p * centerL) / 1000000;
     },
   },
   y_duct: {
@@ -295,10 +303,10 @@ const DUCTS = {
     calc: f => `Plenum Box: ${f.A}×${f.B}×H${f.H2} Neck:${f.C}×${f.D}×H${f.H1} Conn:Ø${f.D2}×H${f.H3}`,
     area: f => {
       const a = +f.A, b = +f.B, h1 = +f.H1, c = +f.C, d = +f.D, h2 = +f.H2, d2 = +f.D2, h3 = +f.H3, fl = +f.F || 0;
-      const bodyTotal = 2*(a*h2 + a*b + b*h2) - Math.PI*Math.pow(d2/2, 2) - c*d;
-      const neckTotal = 2*(c+d)*h1;
+      const bodyTotal = 2 * (a * h2 + a * b + b * h2) - Math.PI * Math.pow(d2 / 2, 2) - c * d;
+      const neckTotal = 2 * (c + d) * h1;
       const connTotal = Math.PI * d2 * h3;
-      const flangeTotal = fl > 0 ? 2*(c*fl + d*fl - 2*fl*fl) : 0;
+      const flangeTotal = fl > 0 ? 2 * (c * fl + d * fl - 2 * fl * fl) : 0;
       return (bodyTotal + neckTotal + connTotal + flangeTotal) / 1000000;
     },
   },
@@ -313,9 +321,9 @@ const DUCTS = {
     calc: f => `Plenum Top: ${f.A}×${f.B}×H${f.H1} Conn:Ø${f.D}×H${f.H2} Flange:${f.F}`,
     area: f => {
       const a = +f.A, b = +f.B, h1 = +f.H1, d = +f.D, h2 = +f.H2, fl = +f.F || 20;
-      const bodyTotal = (a*b) + 2*(a*h1) + 2*(b*h1) - Math.PI*Math.pow(d/2, 2);
-      const flangeTotal = fl > 0 ? 2*(a*fl + b*fl + 2*fl*fl) : 0; // A*B to (A+2F)*(B+2F) = 2AF + 2BF + 4F^2
-      return (bodyTotal + Math.PI*d*h2 + flangeTotal) / 1000000;
+      const bodyTotal = (a * b) + 2 * (a * h1) + 2 * (b * h1) - Math.PI * Math.pow(d / 2, 2);
+      const flangeTotal = fl > 0 ? 2 * (a * fl + b * fl + 2 * fl * fl) : 0; // A*B to (A+2F)*(B+2F) = 2AF + 2BF + 4F^2
+      return (bodyTotal + Math.PI * d * h2 + flangeTotal) / 1000000;
     },
   },
   plenum_tapered: {
@@ -331,17 +339,17 @@ const DUCTS = {
     area: f => {
       const a = +f.A, b = +f.B, h1 = +f.H1, c = +f.C || a, d = +f.D, h2 = +f.H2, fl = +f.F || 0;
       const cw = +f.CW, cd = +f.CD, ch = +f.CH;
-      
-      const ovalArea = Math.max(0, cw - cd) * cd + Math.PI * Math.pow(cd/2, 2);
+
+      const ovalArea = Math.max(0, cw - cd) * cd + Math.PI * Math.pow(cd / 2, 2);
       const ovalPerim = 2 * Math.max(0, cw - cd) + Math.PI * cd;
-      
-      const bodyTotal = 2*(a*h1 + b*h1) + (a*b);
-      const neckTotal = 2*(c*h2 + d*h2);
-      const botFace = (a*b) - (c*d);
-      const flangeTotal = fl > 0 ? 2*(c*fl + d*fl - 2*fl*fl) : 0;
-      
+
+      const bodyTotal = 2 * (a * h1 + b * h1) + (a * b);
+      const neckTotal = 2 * (c * h2 + d * h2);
+      const botFace = (a * b) - (c * d);
+      const flangeTotal = fl > 0 ? 2 * (c * fl + d * fl - 2 * fl * fl) : 0;
+
       const connectorArea = ovalPerim * ch;
-      
+
       return (bodyTotal + botFace + neckTotal - ovalArea + connectorArea + flangeTotal) / 1000000;
     },
   },
@@ -396,9 +404,9 @@ const DUCTS = {
     label: 'Wire Mesh',
     tag: 'Wire Mesh',
     fields: [
-      { id: 'A',  label: 'Length A' },
-      { id: 'B',  label: 'Width B' },
-      { id: 'C',  label: 'Cell Spacing @C' },
+      { id: 'A', label: 'Length A' },
+      { id: 'B', label: 'Width B' },
+      { id: 'C', label: 'Cell Spacing @C' },
       { id: 'OL', label: 'Overlap OL' },
     ],
     calc: f => `Wire mesh: ${f.A}×${f.B}×@C=${f.C || 150} Overlap=${f.OL || 150}mm`,
@@ -461,16 +469,16 @@ const DUCTS = {
     label: '4-Ways Duct',
     tag: '4-Ways',
     fields: [
-      { id: 'A1',  label: 'Main Bottom Width A1' },
-      { id: 'B1',  label: 'Main Bottom Height B1' },
-      { id: 'A4',  label: 'Main Top Width A4' },
-      { id: 'B4',  label: 'Main Top Height B4' },
-      { id: 'A2',  label: 'Right Branch Width A2' },
-      { id: 'B2',  label: 'Right Branch Height B2' },
-      { id: 'A3',  label: 'Left Branch Width A3' },
-      { id: 'B3',  label: 'Left Branch Height B3' },
-      { id: 'R1',  label: 'Left Radius R1' },
-      { id: 'R2',  label: 'Right Radius R2' },
+      { id: 'A1', label: 'Main Bottom Width A1' },
+      { id: 'B1', label: 'Main Bottom Height B1' },
+      { id: 'A4', label: 'Main Top Width A4' },
+      { id: 'B4', label: 'Main Top Height B4' },
+      { id: 'A2', label: 'Right Branch Width A2' },
+      { id: 'B2', label: 'Right Branch Height B2' },
+      { id: 'A3', label: 'Left Branch Width A3' },
+      { id: 'B3', label: 'Left Branch Height B3' },
+      { id: 'R1', label: 'Left Radius R1' },
+      { id: 'R2', label: 'Right Radius R2' },
     ],
     calc: f => `4-ways: ${f.A1}×${f.B1}/${f.A4}×${f.B4} + ${f.A2}×${f.B2}(R${f.R2}) + ${f.A3}×${f.B3}(R${f.R1})`,
     // Left branch (R1): 2*(A3+B3)/1000 * PI/2*R1/1000
@@ -483,12 +491,12 @@ const DUCTS = {
       const a2 = +f.A2, b2 = +f.B2, a3 = +f.A3, b3 = +f.B3;
       const r1 = +f.R1, r2 = +f.R2;
       const rAvg = (r1 + r2) / 2;
-      const leftBranch   = 2 * (a3 + b3) / 1000 * (Math.PI / 2 * r1 / 1000);
-      const rightBranch  = 2 * (a2 + b2) / 1000 * (Math.PI / 2 * r2 / 1000);
-      const topBranch    = 2 * (a4 + b4) / 1000 * (Math.PI / 2 * rAvg / 1000);
+      const leftBranch = 2 * (a3 + b3) / 1000 * (Math.PI / 2 * r1 / 1000);
+      const rightBranch = 2 * (a2 + b2) / 1000 * (Math.PI / 2 * r2 / 1000);
+      const topBranch = 2 * (a4 + b4) / 1000 * (Math.PI / 2 * rAvg / 1000);
       const bottomBranch = 2 * (a1 + b1) / 1000 * (Math.PI / 2 * rAvg / 1000);
       const avgPerim = ((a1 + b1) + (a4 + b4)) / 2;
-      const centre       = 2 * avgPerim / 1000 * (rAvg / 1000);
+      const centre = 2 * avgPerim / 1000 * (rAvg / 1000);
       return leftBranch + rightBranch + topBranch + bottomBranch + centre;
     },
   },
@@ -506,10 +514,10 @@ const DUCTS = {
       { id: 'L', label: 'Length L' },
       { id: 'HD', label: 'Hole Diameter Ø' },
       { id: 'Dist', label: 'Distance from End' },
-      { 
-        id: 'Size', 
-        label: 'Size (W x H)', 
-        type: 'select', 
+      {
+        id: 'Size',
+        label: 'Size (W x H)',
+        type: 'select',
         options: [
           { value: '30', label: '30mm x 30mm' },
           { value: '40', label: '40mm x 40mm' },
@@ -534,10 +542,10 @@ const DUCTS = {
       { id: 'L', label: 'Length L' },
       { id: 'HD', label: 'Hole Diameter Ø' },
       { id: 'Dist', label: 'Distance from End' },
-      { 
-        id: 'Size', 
-        label: 'Size (W x H x D)', 
-        type: 'select', 
+      {
+        id: 'Size',
+        label: 'Size (W x H x D)',
+        type: 'select',
         options: [
           { value: '40', label: '40mm x 40mm x 40mm' },
           { value: '50', label: '50mm x 50mm x 50mm' },

@@ -273,15 +273,49 @@ function _hollowOffset(grp, W1, H1, W2, H2, offsetR, L) {
 
 function _rectToRound(grp, W, H, R, L) {
   const m = _mats(); const segs = 32, half = L / 2;
-  const straightL = L / 2;
+  const S = 1 / 800;
+  
+  let neckRectL = 30 * S;
+  let neckRoundL = 50 * S;
+  
+  // Ensure the transition length is at least a minimal value (e.g. 20 * S)
+  if (L < neckRectL + neckRoundL + 20 * S) {
+    const scale = L / (neckRectL + neckRoundL + 20 * S);
+    neckRectL *= scale;
+    neckRoundL *= scale;
+  }
+  
+  const transL = L - neckRectL - neckRoundL;
+  const startX = -half;
+  const transStartX = startX + neckRectL;
+  const transEndX = transStartX + transL;
 
-  const straightGrp = new THREE.Group();
   const T = Math.max(Math.min(W, H, R * 2) * 0.08, 0.014);
-  _hollowRect(straightGrp, straightL, W, H, T);
-  straightGrp.position.x = -L / 4;
-  grp.add(straightGrp);
+
+  // 1. Rectangular Neck
+  if (neckRectL > 0) {
+    const straightGrp = new THREE.Group();
+    _hollowRect(straightGrp, neckRectL, W, H, T);
+    straightGrp.position.x = startX + neckRectL / 2;
+    grp.add(straightGrp);
+  }
 
   const w_in = W - 2 * T, h_in = H - 2 * T, r_in = Math.max(R - T, R * 0.84);
+
+  // 2. Round Neck
+  if (neckRoundL > 0) {
+    const cylO = new THREE.CylinderGeometry(R, R, neckRoundL, 32, 1, true); cylO.rotateZ(Math.PI / 2);
+    const mOut = new THREE.Mesh(cylO, m.galv);
+    mOut.position.x = transEndX + neckRoundL / 2;
+    grp.add(mOut);
+
+    const cylI = new THREE.CylinderGeometry(r_in, r_in, neckRoundL, 32, 1, true); cylI.rotateZ(Math.PI / 2);
+    const mInn = new THREE.Mesh(cylI, m.inner);
+    mInn.position.x = transEndX + neckRoundL / 2;
+    grp.add(mInn);
+  }
+
+  // 3. Transition Part
   const vertsO = [], vertsI = [];
 
   for (let i = 0; i < segs; i++) {
@@ -295,11 +329,11 @@ function _rectToRound(grp, W, H, R, L) {
     };
     const [x0, y0] = blend(t0, W, H), [x1, y1] = blend(t1, W, H);
     const cx0 = R * Math.cos(t0), cy0 = R * Math.sin(t0), cx1 = R * Math.cos(t1), cy1 = R * Math.sin(t1);
-    vertsO.push(0, y0, x0, half, cy1, cx1, 0, y1, x1, 0, y0, x0, half, cy0, cx0, half, cy1, cx1);
+    vertsO.push(transStartX, y0, x0, transEndX, cy1, cx1, transStartX, y1, x1, transStartX, y0, x0, transEndX, cy0, cx0, transEndX, cy1, cx1);
 
     const [xi0, yi0] = blend(t0, w_in, h_in), [xi1, yi1] = blend(t1, w_in, h_in);
     const cxi0 = r_in * Math.cos(t0), cyi0 = r_in * Math.sin(t0), cxi1 = r_in * Math.cos(t1), cyi1 = r_in * Math.sin(t1);
-    vertsI.push(0, yi0, xi0, 0, yi1, xi1, half, cyi1, cxi1, 0, yi0, xi0, half, cyi1, cxi1, half, cyi0, cxi0);
+    vertsI.push(transStartX, yi0, xi0, transStartX, yi1, xi1, transEndX, cyi1, cxi1, transStartX, yi0, xi0, transEndX, cyi1, cxi1, transEndX, cyi0, cxi0);
   }
 
   const gO = new THREE.BufferGeometry(); gO.setAttribute('position', new THREE.BufferAttribute(new Float32Array(vertsO), 3)); gO.computeVertexNormals(); _mesh(grp, gO, m.galv);
